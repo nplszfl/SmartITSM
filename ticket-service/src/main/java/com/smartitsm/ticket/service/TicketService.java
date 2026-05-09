@@ -1,0 +1,386 @@
+package com.smartitsm.ticket.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.smartitsm.common.ai.AIClient;
+import com.smartitsm.common.dto.AIScoreResult;
+import com.smartitsm.common.exception.BusinessException;
+import com.smartitsm.ticket.dto.TicketCreateDTO;
+import com.smartitsm.ticket.entity.Ticket;
+import com.smartitsm.ticket.repository.TicketRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Ticket Service - core ITSM service with AI integration.
+ * Handles ticket lifecycle management with intelligent routing and prioritization.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TicketService {
+
+    private final TicketRepository ticketRepository;
+    private final AIClient aiClient;
+
+    // Counter for ticket numbering
+    private final AtomicLong ticketSequence = new AtomicLong(System.currentTimeMillis() % 10000);
+
+    /**
+     * Create a new ticket with AI-powered classification, prioritization, and routing.
+     */
+    @Transactional
+    public Ticket createTicket(TicketCreateDTO dto) {
+        log.info("Creating ticket: {}", dto.getTitle());
+
+        // Generate unique ticket number
+        String ticketNumber = generateTicketNumber();
+
+        // Build ticket entity
+        Ticket ticket = Ticket.builder()
+                .ticketNumber(ticketNumber)
+                .title(dto.getTitle())
+                .description(dto.getDescription())
+                .category(dto.getCategory() != null ? dto.getCategory() : "SERVICE_REQUEST")
+                .subCategory(dto.getSubCategory())
+                .item(dto.getItem())
+                .priority(dto.getPriority() != null ? dto.getPriority() : "MEDIUM")
+                .urgency(dto.getUrgency() != null ? dto.getUrgency() : "MEDIUM")
+                .impact(dto.getImpact() != null ? dto.getImpact() : "MEDIUM")
+                .status("NEW")
+                .requesterId(dto.getRequesterId())
+                .requesterName(dto.getRequesterName())
+                .requesterEmail(dto.getRequesterEmail())
+                .requesterDepartment(dto.getRequesterDepartment())
+                .requesterPriority("NORMAL")
+                .source(dto.getSource() != null ? dto.getSource() : "PORTAL")
+                .affectedUsers(dto.getAffectedUsers())
+                .assetId(dto.getAssetId())
+                .build();
+
+        // Apply AI Intelligence
+        applyAIIntelligence(ticket);
+
+        // Determine SLA based on impact/urgency
+        calculateSLA(ticket);
+
+        // Save ticket
+        ticketRepository.save(ticket);
+        log.info("Created ticket {} with AI score {}", ticketNumber, ticket.getAiScore());
+
+        return ticket;
+    }
+
+    /**
+     * Apply AI intelligence to ticket: scoring, classification, assignment suggestion.
+     */
+    private void applyAIIntelligence(Ticket ticket) {
+        try {
+            // Build AI scoring context
+            AIClient.TicketScoringContext scoringContext = AIClient.TicketScoringContext.builder()
+                    .title(ticket.getTitle())
+                    .description(ticket.getDescription())
+                    .category(ticket.getCategory())
+                    .urgency(ticket.getUrgency())
+                    .impact(ticket.getImpact())
+                    .requesterName(ticket.getRequesterName())
+                    .requesterPriority(ticket.getRequesterPriority())
+                    .assignmentGroup(ticket.getAssignedGroup())
+                    .affectedUsers(ticket.getAffectedUsers())
+                    .slaTier(ticket.getSlaTier())
+                    .avgResolutionHours(8.0) // Default
+                    .groupBacklog(10) // Default
+                    .escalationRate(15.0) // Default
+                    .build();
+
+            // Get AI score and priority recommendation
+            AIScoreResult scoreResult = aiClient.scoreTicket(scoringContext);
+
+            if (scoreResult != null) {
+                ticket.setAiScore(scoreResult.getScore());
+                ticket.setAiConfidence(scoreResult.getConfidence());
+                ticket.setAiReasoning(scoreResult.getReasoning());
+                ticket.setAiRecommendedAction(scoreResult.getRecommendedAction());
+
+                // Auto-adjust priority based on AI score
+                if (scoreResult.getScore() >= 80) {
+                    ticket.setPriority("CRITICAL");
+                } else if (scoreResult.getScore() >= 60) {
+                    ticket.setPriority("HIGH");
+                } else if (scoreResult.getScore() >= 40) {
+                    ticket.setPriority("MEDIUM");
+                } else {
+                    ticket.setPriority("LOW");
+                }
+
+                log.info("AI scored ticket {} as {} with confidence {}", 
+                    ticket.getTicketNumber(), scoreResult.getScore(), scoreResult.getConfidence());
+            }
+
+            // Get AI classification if not specified
+            if (ticket.getCategory() == null || ticket.getCategory().equals("SERVICE_REQUEST")) {
+                AIClient.TicketClassificationContext classContext = AIClient.TicketClassificationContext.builder()
+                        .title(ticket.getTitle())
+                        .description(ticket.getDescription())
+                        .keywords(List.of("password", "access", "request"))
+                        .build();
+
+                String classification = aiClient.classifyTicket(classContext);
+                if (classification != null && !classification.isEmpty()) {
+                    ticket.setCategory(classification);
+                }
+            }
+
+            // Get resolution time prediction
+            AIClient.TicketPredictionContext predContext = AIClient.TicketPredictionContext.builder()
+                    .title(ticket.getTitle())
+                    .description(ticket.getDescription())
+                    .category(ticket.getCategory())
+                    .priority(ticket.getPriority())
+                    .complexity("MEDIUM")
+                    .urgency(ticket.getUrgency())
+                    .build();
+
+            Integer predictedHours = aiClient.predictResolutionTime(predContext);
+            ticket.setPredictedResolutionHours(predictedHours);
+
+            // Get assignment suggestion
+            AIClient.TicketAssignmentContext assignContext = AIClient.TicketAssignmentContext.builder()
+                    .title(ticket.getTitle())
+                    .category(ticket.getCategory())
+                    .complexity("MEDIUM")
+                    .priorityScore(ticket.getAiScore() != null ? ticket.getAiScore().intValue() : 50)
+                    .availableAgents(List.of(
+                            AIClient.AgentInfo.builder().name("agent1").currentWorkload(5).avgResolutionHours(4.0).build(),
+                            AIClient.AgentInfo.builder().name("agent2").currentWorkload(3).avgResolutionHours(3.5).build()
+                    ))
+                    .build();
+
+            AIClient.AssignmentSuggestion suggestion = aiClient.suggestAssignment(assignContext);
+            ticket.setSuggestedAssignee(suggestion.getRecommendedAgent());
+
+        } catch (Exception e) {
+            log.error("AI intelligence application failed for ticket {}: {}", ticket.getTicketNumber(), e.getMessage());
+            // Continue without AI - don't fail ticket creation
+        }
+    }
+
+    /**
+     * Calculate SLA deadlines based on priority.
+     */
+    private void calculateSLA(Ticket ticket) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Determine SLA tier based on priority matrix
+        String priority = ticket.getPriority();
+        String urgency = ticket.getUrgency();
+        String impact = ticket.getImpact();
+
+        int responseHours;
+        int resolutionHours;
+
+        if ("CRITICAL".equals(priority) || "CRITICAL".equals(urgency)) {
+            ticket.setSlaTier("P1");
+            responseHours = 1;
+            resolutionHours = 4;
+        } else if ("HIGH".equals(priority) || "HIGH".equals(urgency)) {
+            ticket.setSlaTier("P2");
+            responseHours = 2;
+            resolutionHours = 8;
+        } else if ("MEDIUM".equals(priority)) {
+            ticket.setSlaTier("P3");
+            responseHours = 8;
+            resolutionHours = 24;
+        } else {
+            ticket.setSlaTier("P4");
+            responseHours = 24;
+            resolutionHours = 72;
+        }
+
+        // Adjust for impact
+        if ("HIGH".equals(impact)) {
+            resolutionHours = (int) (resolutionHours * 0.75);
+        }
+
+        ticket.setFirstResponseDue(now.plusHours(responseHours));
+        ticket.setResolutionDue(now.plusHours(resolutionHours));
+    }
+
+    /**
+     * Update ticket status and process state transitions.
+     */
+    @Transactional
+    public Ticket updateTicketStatus(Long ticketId, String newStatus, String notes) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        String oldStatus = ticket.getStatus();
+        ticket.setStatus(newStatus);
+        ticket.setResolutionNotes(notes);
+
+        // Track timestamps
+        if ("IN_PROGRESS".equals(newStatus) && ticket.getFirstResponseAt() == null) {
+            ticket.setFirstResponseAt(LocalDateTime.now());
+        } else if ("RESOLVED".equals(newStatus)) {
+            ticket.setResolvedAt(LocalDateTime.now());
+        } else if ("CLOSED".equals(newStatus)) {
+            ticket.setClosedAt(LocalDateTime.now());
+        }
+
+        ticketRepository.updateById(ticket);
+
+        log.info("Ticket {} status changed from {} to {}", ticket.getTicketNumber(), oldStatus, newStatus);
+
+        // Check SLA compliance
+        checkSLACompliance(ticket);
+
+        return ticket;
+    }
+
+    /**
+     * Assign ticket to agent or group.
+     */
+    @Transactional
+    public Ticket assignTicket(Long ticketId, String assignee, String assignedGroup, String reason) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        ticket.setAssignedTo(assignee);
+        ticket.setAssignedGroup(assignedGroup);
+        ticket.setAssignmentReason(reason);
+
+        if ("NEW".equals(ticket.getStatus())) {
+            ticket.setStatus("OPEN");
+        }
+
+        ticketRepository.updateById(ticket);
+
+        log.info("Ticket {} assigned to {} in group {}", ticket.getTicketNumber(), assignee, assignedGroup);
+
+        return ticket;
+    }
+
+    /**
+     * Get ticket with AI insights.
+     */
+    public Ticket getTicketWithAIInsights(Long ticketId) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        // Enhance with real-time AI insights
+        if (ticket.getAiScore() == null || ticket.getAiScore() < 50) {
+            // Re-score if previously low priority
+            AIClient.TicketScoringContext context = AIClient.TicketScoringContext.builder()
+                    .title(ticket.getTitle())
+                    .description(ticket.getDescription())
+                    .category(ticket.getCategory())
+                    .urgency(ticket.getUrgency())
+                    .impact(ticket.getImpact())
+                    .requesterName(ticket.getRequesterName())
+                    .requesterPriority(ticket.getRequesterPriority())
+                    .affectedUsers(ticket.getAffectedUsers())
+                    .build();
+
+            AIScoreResult result = aiClient.scoreTicket(context);
+            if (result != null) {
+                ticket.setAiScore(result.getScore());
+                ticket.setAiConfidence(result.getConfidence());
+                ticket.setAiReasoning(result.getReasoning());
+            }
+        }
+
+        return ticket;
+    }
+
+    /**
+     * Search tickets with filters.
+     */
+    public IPage<Ticket> searchTickets(String status, String priority, String category,
+                                       String assignedTo, String requesterId, int page, int size) {
+        QueryWrapper<Ticket> query = new QueryWrapper<>();
+
+        if (status != null) query.eq("status", status);
+        if (priority != null) query.eq("priority", priority);
+        if (category != null) query.eq("category", category);
+        if (assignedTo != null) query.eq("assigned_to", assignedTo);
+        if (requesterId != null) query.eq("requester_id", requesterId);
+
+        query.orderByDesc("created_at");
+
+        return ticketRepository.page(new Page<>(page, size), query);
+    }
+
+    /**
+     * Get tickets requiring immediate attention (high AI score).
+     */
+    public List<Ticket> getUrgentTickets(int minScore) {
+        QueryWrapper<Ticket> query = new QueryWrapper<>();
+        query.ge("ai_score", minScore)
+             .in("status", List.of("NEW", "OPEN"))
+             .orderByDesc("ai_score")
+             .last("LIMIT 50");
+        return ticketRepository.list(query);
+    }
+
+    /**
+     * Check SLA compliance and flag breaches.
+     */
+    private void checkSLACompliance(Ticket ticket) {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (ticket.getFirstResponseDue() != null && now.isAfter(ticket.getFirstResponseDue())
+                && ticket.getFirstResponseAt() == null) {
+            log.warn("Ticket {} has breached first response SLA!", ticket.getTicketNumber());
+        }
+
+        if (ticket.getResolutionDue() != null && now.isAfter(ticket.getResolutionDue())
+                && !"RESOLVED".equals(ticket.getStatus()) && !"CLOSED".equals(ticket.getStatus())) {
+            log.warn("Ticket {} has breached resolution SLA!", ticket.getTicketNumber());
+        }
+    }
+
+    /**
+     * Generate unique ticket number.
+     */
+    private String generateTicketNumber() {
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        long seq = ticketSequence.incrementAndGet();
+        return String.format("TKT-%s-%04d", date, seq % 10000);
+    }
+
+    /**
+     * Get ticket statistics.
+     */
+    public TicketStats getTicketStats() {
+        TicketStats stats = new TicketStats();
+        stats.setTotalOpen(ticketRepository.count(new QueryWrapper<Ticket>().in("status", List.of("NEW", "OPEN", "IN_PROGRESS"))));
+        stats.setCritical(ticketRepository.count(new QueryWrapper<Ticket>().eq("priority", "CRITICAL").in("status", List.of("NEW", "OPEN"))));
+        stats.setUnassigned(ticketRepository.count(new QueryWrapper<Ticket>().isNull("assigned_to").eq("status", "NEW")));
+        stats.setBreachedSLA(ticketRepository.count(new QueryWrapper<Ticket>()
+                .lt("resolution_due", LocalDateTime.now())
+                .notIn("status", List.of("RESOLVED", "CLOSED"))));
+        return stats;
+    }
+
+    @Data
+    public static class TicketStats {
+        private long totalOpen;
+        private long critical;
+        private long unassigned;
+        private long breachedSLA;
+    }
+}

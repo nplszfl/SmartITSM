@@ -1,6 +1,7 @@
 package com.smartitsm.ai.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 public class MaintenancePredictRequest {
 
@@ -49,9 +50,6 @@ public class MaintenancePredictRequest {
         public void setTimestamp(String timestamp) {
             this.timestamp = timestamp;
         }
-    }
-
-    public static class Map {
     }
 
     public String getSystemId() {

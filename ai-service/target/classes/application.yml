@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: smartitsm-ai-service
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+
+# DeepSeek API Configuration
+deepseek:
+  api:
+    base-url: https://api.deepseek.com
+    api-key: ${DEEPSEEK_API_KEY:sk-your-api-key-here}
+    model: deepseek-chat
+    max-retries: 3
+    retry-delay-ms: 1000
+
+# Logging
+logging:
+  level:
+    com.smartitsm.ai: DEBUG
+    org.springframework.web.reactive: DEBUG

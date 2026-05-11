@@ -3,15 +3,15 @@ package com.smartitsm.common.ai;
 import com.smartitsm.common.dto.AIInsightResult;
 import com.smartitsm.common.dto.AIScoreResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.ChatClient;
-import org.springframework.ai.chat.ChatResponse;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * AI Client for SmartITSM - handles intelligent ticket routing,
@@ -21,10 +21,16 @@ import java.util.*;
 @Component
 public class AIClient {
 
-    private final ChatClient chatClient;
+    private final WebClient webClient;
 
-    public AIClient(ChatClient chatClient) {
-        this.chatClient = chatClient;
+    @Value("${spring.ai.openai.api-key:EMPTY}")
+    private String apiKey;
+
+    @Value("${spring.ai.openai.base-url:https://api.openai.com}")
+    private String baseUrl;
+
+    public AIClient(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
     }
 
     /**
@@ -45,7 +51,7 @@ public class AIClient {
                 .confidence(confidence)
                 .factors(extractKeyFactors(context))
                 .recommendedAction(determineRecommendedAction(score, context))
-                .priorityScore(score / 10.0) // Convert to 0-10 scale
+                .priorityScore(score / 10.0)
                 .build();
     }
 
@@ -433,33 +439,57 @@ public class AIClient {
     // ==================== AI Response Parsing ====================
 
     private String callAI(String prompt) {
+        if ("EMPTY".equals(apiKey)) {
+            log.warn("AI API key not configured, returning default response");
+            return "{\"score\": 50, \"reasoning\": \"AI analysis unavailable\"}";
+        }
+
         try {
-            Prompt aiPrompt = new Prompt(
-                new UserMessage(prompt),
-                OpenAiChatOptions.builder()
-                    .withModel("gpt-4-turbo")
-                    .withTemperature(0.3) // Lower temp for more consistent results
-                    .build()
+            Map<String, Object> request = Map.of(
+                "model", "gpt-3.5-turbo",
+                "messages", List.of(Map.of("role", "user", "content", prompt)),
+                "temperature", 0.3
             );
 
-            ChatResponse response = chatClient.call(aiPrompt);
-            return response.getResult().getOutput().getContent();
+            String response = webClient.post()
+                .uri("/v1/chat/completions")
+                .header("Authorization", "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+            return parseAIResponse(response);
         } catch (Exception e) {
             log.error("AI call failed: {}", e.getMessage());
             return "{\"error\": \"AI analysis unavailable\"}";
         }
     }
 
-    private Double extractScoreFromReasoning(String reasoning) {
-        if (reasoning.contains("\"score\":")) {
-            String[] parts = reasoning.split("\"score\":");
-            if (parts.length > 1) {
-                String numStr = parts[1].trim().split("[,\\}]")[0];
-                try {
-                    return Double.parseDouble(numStr);
-                } catch (NumberFormatException e) {
-                    return 50.0;
+    private String parseAIResponse(String response) {
+        try {
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response);
+            if (json.containsKey("choices")) {
+                var choices = json.getJSONArray("choices");
+                if (choices != null && !choices.isEmpty()) {
+                    return choices.getJSONObject(0).getJSONObject("message").getString("content");
                 }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse AI response: {}", e.getMessage());
+        }
+        return response;
+    }
+
+    private Double extractScoreFromReasoning(String reasoning) {
+        Pattern pattern = Pattern.compile("\"score\"\\s*:\\s*(\\d+(?:\\.\\d+)?)");
+        Matcher matcher = pattern.matcher(reasoning);
+        if (matcher.find()) {
+            try {
+                return Double.parseDouble(matcher.group(1));
+            } catch (NumberFormatException e) {
+                return 50.0;
             }
         }
         return 50.0;
@@ -495,150 +525,125 @@ public class AIClient {
     }
 
     private String extractClassification(String response) {
-        if (response.contains("\"category\":")) {
-            String[] parts = response.split("\"category\":");
-            if (parts.length > 1) {
-                String category = parts[1].trim().split("[,\\}]")[0].replace("\"", "").trim();
-                return category;
-            }
+        Pattern pattern = Pattern.compile("\"category\"\\s*:\\s*\"([^\"]+)\"");
+        Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            return matcher.group(1);
         }
         return "SERVICE_REQUEST";
     }
 
     private Integer extractResolutionTime(String response) {
-        if (response.contains("\"estimatedHours\":")) {
-            String[] parts = response.split("\"estimatedHours\":");
-            if (parts.length > 1) {
-                String numStr = parts[1].trim().split("[,\\}]")[0];
-                try {
-                    return Integer.parseInt(numStr);
-                } catch (NumberFormatException e) {
-                    return 24; // Default 24 hours
-                }
+        Pattern pattern = Pattern.compile("\"estimatedHours\"\\s*:\\s*(\\d+)");
+        Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException e) {
+                return 4;
             }
         }
-        return 24;
+        return 4;
+    }
+
+    private String formatAgentList(List<Map<String, Object>> agents) {
+        if (agents == null || agents.isEmpty()) {
+            return "No agents available";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> agent : agents) {
+            sb.append(String.format("- %s: skills=%s, workload=%s, success_rate=%.1f%%\n",
+                agent.getOrDefault("name", "Unknown"),
+                agent.getOrDefault("skills", "general"),
+                agent.getOrDefault("currentWorkload", "unknown"),
+                ((Number) agent.getOrDefault("successRate", 0)).doubleValue()));
+        }
+        return sb.toString();
+    }
+
+    private String formatStepDetails(List<Map<String, Object>> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return "No step details available";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < steps.size(); i++) {
+            Map<String, Object> step = steps.get(i);
+            sb.append(String.format("Step %d: %s (avg %.1f hours)\n",
+                i + 1,
+                step.getOrDefault("name", "Unknown"),
+                ((Number) step.getOrDefault("avgHours", 0)).doubleValue()));
+        }
+        return sb.toString();
+    }
+
+    private String formatTimeSeriesData(List<Map<String, Object>> timeSeriesData) {
+        if (timeSeriesData == null || timeSeriesData.isEmpty()) {
+            return "No historical data available";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> point : timeSeriesData) {
+            sb.append(String.format("- %s: %.2f\n",
+                point.getOrDefault("timestamp", "unknown"),
+                ((Number) point.getOrDefault("value", 0)).doubleValue()));
+        }
+        return sb.toString();
     }
 
     private AssignmentSuggestion parseAssignmentSuggestion(String response, TicketAssignmentContext context) {
-        String agent = "Unassigned";
-        List<String> alternatives = new ArrayList<>();
-
-        if (response.contains("\"recommendedAgent\":")) {
-            String[] parts = response.split("\"recommendedAgent\":");
-            if (parts.length > 1) {
-                agent = parts[1].trim().split("[,\\}]")[0].replace("\"", "").trim();
-            }
+        String agent = "DEFAULT_AGENT";
+        Pattern pattern = Pattern.compile("\"recommendedAgent\"\\s*:\\s*\"([^\"]+)\"");
+        Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            agent = matcher.group(1);
         }
-
-        if (response.contains("\"alternativeAgents\":")) {
-            String[] parts = response.split("\"alternativeAgents\":");
-            if (parts.length > 1) {
-                String altStr = parts[1].split("]")[0].replace("[", "").replace("\"", "");
-                for (String alt : altStr.split(",")) {
-                    alternatives.add(alt.trim());
-                }
-            }
-        }
-
         return AssignmentSuggestion.builder()
-                .recommendedAgent(agent)
-                .reasoning("AI-based assignment optimization")
-                .alternativeAgents(alternatives.toArray(new String[0]))
-                .estimatedResolutionHours(24)
-                .confidence("HIGH")
+                .suggestedAgentId(agent)
+                .reasoning(response)
+                .confidence("MEDIUM")
                 .build();
     }
 
     private AssetHealthAnalysis parseAssetHealthAnalysis(String response, AssetHealthContext context) {
-        Double healthScore = 50.0;
+        int healthScore = 50;
         String riskLevel = "MEDIUM";
-
-        if (response.contains("\"healthScore\":")) {
-            String[] parts = response.split("\"healthScore\":");
-            if (parts.length > 1) {
-                String numStr = parts[1].trim().split("[,\\}]")[0];
-                try {
-                    healthScore = Double.parseDouble(numStr);
-                } catch (NumberFormatException ignored) {}
-            }
+        Pattern scorePattern = Pattern.compile("\"healthScore\"\\s*:\\s*(\\d+)");
+        Matcher scoreMatcher = scorePattern.matcher(response);
+        if (scoreMatcher.find()) {
+            healthScore = Integer.parseInt(scoreMatcher.group(1));
         }
-
-        if (response.contains("\"riskLevel\":")) {
-            String[] parts = response.split("\"riskLevel\":");
-            if (parts.length > 1) {
-                riskLevel = parts[1].trim().split("[,\\}]")[0].replace("\"", "").trim();
-            }
+        Pattern riskPattern = Pattern.compile("\"riskLevel\"\\s*:\\s*\"([^\"]+)\"");
+        Matcher riskMatcher = riskPattern.matcher(response);
+        if (riskMatcher.find()) {
+            riskLevel = riskMatcher.group(1);
         }
-
         return AssetHealthAnalysis.builder()
-                .healthScore(healthScore)
+                .healthScore((double) healthScore)
                 .riskLevel(riskLevel)
-                .prediction("Monitor for 30 days")
-                .recommendations(new String[]{"Schedule maintenance", "Monitor metrics"})
-                .confidence("HIGH")
+                .prediction("Normal operation")
+                .recommendations(List.of("Continue monitoring"))
                 .build();
     }
 
     private AIInsightResult parseWorkflowInsight(String response, WorkflowOptimizationContext context) {
         return AIInsightResult.builder()
-                .insightType("RECOMMENDATION")
-                .title("Workflow Optimization for " + context.getWorkflowName())
-                .description(response)
-                .confidence(0.85)
-                .recommendations(new String[]{"Review step sequence", "Implement automation"})
-                .severity("INFO")
+                .insight(response)
+                .confidence(0.5)
+                .category("WORKFLOW_OPTIMIZATION")
                 .build();
     }
 
     private AIInsightResult parseAnomalyInsight(String response, AnomalyDetectionContext context) {
-        boolean isAnomaly = response.contains("\"isAnomaly\": true");
-
+        boolean isAnomaly = false;
+        Pattern pattern = Pattern.compile("\"isAnomaly\"\\s*:\\s*(true|false)");
+        Matcher matcher = pattern.matcher(response);
+        if (matcher.find()) {
+            isAnomaly = Boolean.parseBoolean(matcher.group(1));
+        }
         return AIInsightResult.builder()
-                .insightType(isAnomaly ? "ANOMALY" : "NORMAL")
-                .title("Anomaly Detection: " + context.getMetricName())
-                .description(response)
-                .confidence(0.80)
-                .recommendations(new String[]{"Investigate source", "Check related systems"})
-                .severity(isAnomaly ? "WARNING" : "INFO")
-                .affectedEntities(new ArrayList<>(List.of(context.getMetricName())))
+                .insight(response)
+                .confidence(isAnomaly ? 0.9 : 0.3)
+                .category("ANOMALY_DETECTION")
                 .build();
-    }
-
-    // ==================== Helper Methods ====================
-
-    private String formatAgentList(List<AgentInfo> agents) {
-        StringBuilder sb = new StringBuilder();
-        for (AgentInfo agent : agents) {
-            sb.append(String.format("- %s: skills=%s, workload=%d tickets, avg resolution=%.1fh\n",
-                agent.getName(),
-                agent.getSkills() != null ? String.join(",", agent.getSkills()) : "general",
-                agent.getCurrentWorkload(),
-                agent.getAvgResolutionHours()));
-        }
-        return sb.toString();
-    }
-
-    private String formatStepDetails(List<WorkflowStepInfo> steps) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < steps.size(); i++) {
-            WorkflowStepInfo step = steps.get(i);
-            sb.append(String.format("Step %d: %s (%.1f hours, automation=%s)\n",
-                i + 1, step.getName(), step.getDurationHours(), step.getAutomated()));
-        }
-        return sb.toString();
-    }
-
-    private String formatTimeSeriesData(List<Double> data) {
-        if (data == null || data.isEmpty()) {
-            return "No historical data available";
-        }
-        StringBuilder sb = new StringBuilder();
-        String[] labels = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-        for (int i = 0; i < Math.min(data.size(), labels.length); i++) {
-            sb.append(String.format("%s: %.2f\n", labels[i], data.get(i)));
-        }
-        return sb.toString();
     }
 
     // ==================== Context Classes ====================
@@ -654,13 +659,13 @@ public class AIClient {
         private String requesterName;
         private String requesterPriority;
         private String assignmentGroup;
-        private Integer affectedUsers;
+        private int affectedUsers;
         private String businessValue;
         private String downtimeImpact;
         private String slaTier;
-        private Double avgResolutionHours;
-        private Integer groupBacklog;
-        private Double escalationRate;
+        private double avgResolutionHours;
+        private int groupBacklog;
+        private double escalationRate;
     }
 
     @lombok.Data
@@ -681,8 +686,8 @@ public class AIClient {
         private String complexity;
         private String assigneeName;
         private String assigneeSkillLevel;
-        private Double avgResolutionHours;
-        private Integer assigneeQueueSize;
+        private double avgResolutionHours;
+        private int assigneeQueueSize;
         private String urgency;
     }
 
@@ -692,9 +697,9 @@ public class AIClient {
         private String title;
         private String category;
         private String complexity;
-        private Integer priorityScore;
+        private int priorityScore;
         private List<String> requiredSkills;
-        private List<AgentInfo> availableAgents;
+        private List<Map<String, Object>> availableAgents;
     }
 
     @lombok.Data
@@ -704,17 +709,17 @@ public class AIClient {
         private String assetType;
         private String manufacturer;
         private String model;
-        private Integer ageYears;
-        private String purchaseDate;
+        private int ageYears;
+        private LocalDate purchaseDate;
         private String warrantyStatus;
-        private Double cpuUsage;
-        private Double memoryUsage;
-        private Double diskUsage;
-        private Double networkLatency;
-        private Double errorRate;
-        private Integer incidentCountLast30Days;
-        private Double maintenanceCompliance;
-        private Double failureProbability;
+        private double cpuUsage;
+        private double memoryUsage;
+        private double diskUsage;
+        private double networkLatency;
+        private double errorRate;
+        private int incidentCountLast30Days;
+        private double maintenanceCompliance;
+        private double failureProbability;
         private String businessImpact;
     }
 
@@ -722,11 +727,11 @@ public class AIClient {
     @lombok.Builder
     public static class WorkflowOptimizationContext {
         private String workflowName;
-        private Integer totalSteps;
-        private Double avgCompletionHours;
-        private Double slaComplianceRate;
-        private Double currentCost;
-        private List<WorkflowStepInfo> stepDetails;
+        private int totalSteps;
+        private double avgCompletionHours;
+        private double slaComplianceRate;
+        private double currentCost;
+        private List<Map<String, Object>> stepDetails;
         private List<String> bottlenecks;
     }
 
@@ -734,53 +739,29 @@ public class AIClient {
     @lombok.Builder
     public static class AnomalyDetectionContext {
         private String metricName;
-        private Double currentValue;
-        private Double baseline;
-        private Double threshold;
+        private double currentValue;
+        private double baseline;
+        private double threshold;
         private String unit;
-        private List<Double> timeSeriesData;
+        private List<Map<String, Object>> timeSeriesData;
         private String description;
         private String severityIfBreached;
     }
 
     @lombok.Data
     @lombok.Builder
-    public static class AgentInfo {
-        private String name;
-        private List<String> skills;
-        private Integer currentWorkload;
-        private Double avgResolutionHours;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    public static class WorkflowStepInfo {
-        private String name;
-        private Double durationHours;
-        private String automated;
-    }
-
-    // ==================== Result Classes ====================
-
-    @lombok.Data
-    @lombok.Builder
     public static class AssignmentSuggestion {
-        private String recommendedAgent;
+        private String suggestedAgentId;
         private String reasoning;
-        private String[] alternativeAgents;
-        private Integer estimatedResolutionHours;
         private String confidence;
     }
 
     @lombok.Data
     @lombok.Builder
     public static class AssetHealthAnalysis {
-        private Double healthScore;
+        private double healthScore;
         private String riskLevel;
         private String prediction;
-        private String[] recommendations;
-        private String maintenanceWindow;
-        private Double estimatedReplacementCost;
-        private String confidence;
+        private List<String> recommendations;
     }
 }

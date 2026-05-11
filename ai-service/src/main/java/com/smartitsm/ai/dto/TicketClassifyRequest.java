@@ -1,6 +1,7 @@
 package com.smartitsm.ai.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 public class TicketClassifyRequest {
 
@@ -17,9 +18,6 @@ public class TicketClassifyRequest {
     private String reportedAt;
     private String source;
     private Map<String, Object> metadata;
-
-    public static class Map {
-    }
 
     public String getTicketId() {
         return ticketId;

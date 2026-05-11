@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.smartitsm</groupgroupId>
+    <groupId>com.smartitsm</groupId>
     <artifactId>smartitsm-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -21,11 +21,8 @@
 
     <modules>
         <module>common</module>
-        <module>gateway</module>
-        <module>ticket-service</module>
+        <module>ai-service</module>
         <module>asset-service</module>
-        <module>workflow-service</module>
-        <module>analytics-service</module>
     </modules>
 
     <properties>
@@ -34,7 +31,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
-        <spring-cloud.version>2023.0.1.1</spring-cloud.version>
+        <spring-cloud.version>2023.0.1</spring-cloud.version>
         <spring-ai.version>1.0.0-M6</spring-ai.version>
         <mybatis-plus.version>3.5.6</mybatis-plus.version>
         <hutool.version>5.8.26</hutool.version>
@@ -64,6 +61,11 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-core</artifactId>
+                <version>${spring-ai.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
@@ -161,10 +163,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.smartitsm</groupId>
-            <artifactId>smartitsm-common</artifactId>
         </dependency>
     </dependencies>
 

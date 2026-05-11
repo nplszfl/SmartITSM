@@ -1,6 +1,7 @@
 package com.smartitsm.ai.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 public class ResolutionSuggestRequest {
 
@@ -14,9 +15,6 @@ public class ResolutionSuggestRequest {
     private String subcategory;
     private String[] previousResolutions;
     private Map<String, Object> context;
-
-    public static class Map {
-    }
 
     public String getTicketId() {
         return ticketId;

@@ -1,0 +1,17 @@
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/TicketClassifyRequest.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/service/TicketClassificationService.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/ResolutionSuggestResponse.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/ResolutionSuggestRequest.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/RootCauseResponse.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/SmartItsmAiApplication.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/config/DeepSeekProperties.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/service/RootCauseAnalysisService.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/RootCauseRequest.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/TicketClassifyResponse.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/controller/HealthController.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/controller/AiEndpointsController.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/client/DeepSeekClient.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/service/PredictiveMaintenanceService.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/MaintenancePredictRequest.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/dto/MaintenancePredictResponse.java
+/Users/huanghuixiang/smartitsm/ai-service/src/main/java/com/smartitsm/ai/service/AutomatedResolutionService.java

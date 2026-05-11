@@ -22,12 +22,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/ai")
-public class AiTicketController {
+public class AiEndpointsController {
 
-    private static final Logger log = LoggerFactory.getLogger(AiTicketController.class);
+    private static final Logger log = LoggerFactory.getLogger(AiEndpointsController.class);
     private final TicketClassificationService ticketClassificationService;
 
-    public AiTicketController(TicketClassificationService ticketClassificationService) {
+    public AiEndpointsController(TicketClassificationService ticketClassificationService) {
         this.ticketClassificationService = ticketClassificationService;
     }
 

@@ -1,0 +1,9 @@
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/exception/GlobalExceptionHandler.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/dto/AIInsightResult.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/exception/ResourceNotFoundException.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/exception/BusinessException.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/dto/ApiResponse.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/ai/AIClient.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/dto/AIScoreResult.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/entity/BaseEntity.java
+/Users/huanghuixiang/smartitsm/common/src/main/java/com/smartitsm/common/exception/UnauthorizedException.java

@@ -1,6 +1,7 @@
 package com.smartitsm.ai.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 public class RootCauseRequest {
 
@@ -14,9 +15,6 @@ public class RootCauseRequest {
     private String symptoms;
     private String[] previousAttempts;
     private Map<String, Object> systemContext;
-
-    public static class Map {
-    }
 
     public String getTicketId() {
         return ticketId;

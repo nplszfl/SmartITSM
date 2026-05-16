@@ -1,0 +1,13 @@
+com/smartitsm/asset/dto/AssetCreateDTO.class
+com/smartitsm/asset/service/AssetService.class
+com/smartitsm/asset/entity/Asset.class
+com/smartitsm/asset/dto/AssetUpdateDTO.class
+com/smartitsm/asset/dto/AssetHealthDTO.class
+com/smartitsm/asset/service/AssetService$AssetStats.class
+com/smartitsm/asset/config/AssetApplication.class
+com/smartitsm/asset/repository/AssetRepository.class
+com/smartitsm/asset/dto/AssetResponseDTO$AssetResponseDTOBuilder.class
+com/smartitsm/asset/entity/Asset$AssetBuilder.class
+com/smartitsm/asset/dto/AssetHealthDTO$AssetHealthDTOBuilder.class
+com/smartitsm/asset/dto/AssetResponseDTO.class
+com/smartitsm/asset/controller/AssetController.class

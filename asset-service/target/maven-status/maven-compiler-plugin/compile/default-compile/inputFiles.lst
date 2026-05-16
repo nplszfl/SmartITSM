@@ -1,0 +1,9 @@
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/dto/AssetCreateDTO.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/dto/AssetResponseDTO.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/repository/AssetRepository.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/entity/Asset.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/dto/AssetHealthDTO.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/config/AssetApplication.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/controller/AssetController.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/dto/AssetUpdateDTO.java
+/Users/huanghuixiang/smartitsm/asset-service/src/main/java/com/smartitsm/asset/service/AssetService.java

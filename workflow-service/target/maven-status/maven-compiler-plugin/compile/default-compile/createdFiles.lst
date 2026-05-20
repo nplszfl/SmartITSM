@@ -1,0 +1,17 @@
+com/smartitsm/workflow/entity/WorkflowDefinition$WorkflowDefinitionBuilder.class
+com/smartitsm/workflow/service/WorkflowService$1.class
+com/smartitsm/workflow/entity/WorkflowInstance$WorkflowInstanceBuilder.class
+com/smartitsm/workflow/dto/WorkflowResponseDTO.class
+com/smartitsm/workflow/entity/WorkflowDefinition.class
+com/smartitsm/workflow/controller/WorkflowController.class
+com/smartitsm/workflow/entity/WorkflowInstance.class
+com/smartitsm/workflow/repository/WorkflowDefinitionRepository.class
+com/smartitsm/workflow/WorkflowApplication.class
+com/smartitsm/workflow/entity/WorkflowStep.class
+com/smartitsm/workflow/dto/WorkflowStartDTO.class
+com/smartitsm/workflow/repository/WorkflowInstanceRepository.class
+com/smartitsm/workflow/repository/WorkflowStepRepository.class
+com/smartitsm/workflow/service/WorkflowService.class
+com/smartitsm/workflow/dto/WorkflowResponseDTO$WorkflowResponseDTOBuilder.class
+com/smartitsm/workflow/dto/WorkflowStatsDTO.class
+com/smartitsm/workflow/entity/WorkflowStep$WorkflowStepBuilder.class

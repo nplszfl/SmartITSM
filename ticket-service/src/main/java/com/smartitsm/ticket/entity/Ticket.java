@@ -3,12 +3,16 @@ package com.smartitsm.ticket.entity;
 import com.smartitsm.common.entity.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
  * Ticket entity - core domain model for ITSM.
  */
+@Builder
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("t_ticket")

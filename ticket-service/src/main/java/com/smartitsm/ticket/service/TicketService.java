@@ -9,6 +9,7 @@ import com.smartitsm.common.exception.BusinessException;
 import com.smartitsm.ticket.dto.TicketCreateDTO;
 import com.smartitsm.ticket.entity.Ticket;
 import com.smartitsm.ticket.repository.TicketRepository;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -159,8 +161,8 @@ public class TicketService {
                     .complexity("MEDIUM")
                     .priorityScore(ticket.getAiScore() != null ? ticket.getAiScore().intValue() : 50)
                     .availableAgents(List.of(
-                            AIClient.AgentInfo.builder().name("agent1").currentWorkload(5).avgResolutionHours(4.0).build(),
-                            AIClient.AgentInfo.builder().name("agent2").currentWorkload(3).avgResolutionHours(3.5).build()
+                            Map.of("name", "agent1", "currentWorkload", 5, "avgResolutionHours", 4.0, "successRate", 0.95),
+                            Map.of("name", "agent2", "currentWorkload", 3, "avgResolutionHours", 3.5, "successRate", 0.92)
                     ))
                     .build();
 

@@ -1,0 +1,13 @@
+com/smartitsm/analytics/controller/AnalyticsController.class
+com/smartitsm/analytics/dto/AssetHealthSummary$AssetHealthSummaryBuilder.class
+com/smartitsm/analytics/dto/TicketTrend$TicketTrendBuilder.class
+com/smartitsm/analytics/dto/AnalyticsSummary.class
+com/smartitsm/analytics/dto/CategoryBreakdown$CategoryBreakdownBuilder.class
+com/smartitsm/analytics/dto/AgentPerformance$AgentPerformanceBuilder.class
+com/smartitsm/analytics/dto/AnalyticsSummary$AnalyticsSummaryBuilder.class
+com/smartitsm/analytics/dto/AgentPerformance.class
+com/smartitsm/analytics/dto/AssetHealthSummary.class
+com/smartitsm/analytics/service/AnalyticsService.class
+com/smartitsm/analytics/AnalyticsApplication.class
+com/smartitsm/analytics/dto/CategoryBreakdown.class
+com/smartitsm/analytics/dto/TicketTrend.class

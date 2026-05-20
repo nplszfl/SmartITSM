@@ -1,0 +1,8 @@
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/dto/AssetHealthSummary.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/controller/AnalyticsController.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/service/AnalyticsService.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/AnalyticsApplication.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/dto/AnalyticsSummary.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/dto/TicketTrend.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/dto/AgentPerformance.java
+/Users/huanghuixiang/smartitsm/analytics-service/src/main/java/com/smartitsm/analytics/dto/CategoryBreakdown.java

@@ -1,6 +1,8 @@
 com/smartitsm/common/ai/AIClient$AssetHealthAnalysis$AssetHealthAnalysisBuilder.class
+com/smartitsm/common/ai/AIClient$AgentInfo$AgentInfoBuilder.class
 com/smartitsm/common/ai/AIClient$TicketClassificationContext$TicketClassificationContextBuilder.class
 com/smartitsm/common/ai/AIClient$TicketAssignmentContext.class
+com/smartitsm/common/ai/AIClient$AgentInfo.class
 com/smartitsm/common/dto/ApiResponse$ApiResponseBuilder.class
 com/smartitsm/common/ai/AIClient$WorkflowOptimizationContext$WorkflowOptimizationContextBuilder.class
 com/smartitsm/common/ai/AIClient$AssetHealthContext.class

@@ -23,6 +23,9 @@
         <module>common</module>
         <module>ai-service</module>
         <module>asset-service</module>
+        <module>ticket-service</module>
+        <module>workflow-service</module>
+        <module>analytics-service</module>
     </modules>
 
     <properties>

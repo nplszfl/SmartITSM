@@ -754,6 +754,16 @@ public class AIClient {
         private String suggestedAgentId;
         private String reasoning;
         private String confidence;
+        private String recommendedAgent;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    public static class AgentInfo {
+        private String name;
+        private int currentWorkload;
+        private double avgResolutionHours;
+        private double successRate;
     }
 
     @lombok.Data

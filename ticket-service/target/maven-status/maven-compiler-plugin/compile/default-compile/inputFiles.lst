@@ -1,0 +1,6 @@
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/dto/TicketCreateDTO.java
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/entity/Ticket.java
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/repository/TicketRepository.java
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/TicketServiceApplication.java
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/controller/TicketController.java
+/Users/huanghuixiang/smartitsm/ticket-service/src/main/java/com/smartitsm/ticket/service/TicketService.java

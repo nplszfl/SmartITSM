@@ -7,8 +7,13 @@ import com.smartitsm.common.ai.AIClient;
 import com.smartitsm.common.dto.AIScoreResult;
 import com.smartitsm.common.exception.BusinessException;
 import com.smartitsm.ticket.dto.TicketCreateDTO;
+import com.smartitsm.ticket.dto.TicketUpdateDTO;
 import com.smartitsm.ticket.entity.Ticket;
+import com.smartitsm.ticket.entity.TicketComment;
+import com.smartitsm.ticket.entity.TicketHistory;
 import com.smartitsm.ticket.repository.TicketRepository;
+import com.smartitsm.ticket.repository.TicketCommentRepository;
+import com.smartitsm.ticket.repository.TicketHistoryRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final TicketCommentRepository ticketCommentRepository;
+    private final TicketHistoryRepository ticketHistoryRepository;
     private final AIClient aiClient;
 
     // Counter for ticket numbering
@@ -362,6 +369,161 @@ public class TicketService {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long seq = ticketSequence.incrementAndGet();
         return String.format("TKT-%s-%04d", date, seq % 10000);
+    }
+
+    /**
+     * Add a comment to a ticket.
+     */
+    @Transactional
+    public TicketComment addComment(Long ticketId, String content, String authorId, 
+                                    String authorName, String authorType, String visibility) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        TicketComment comment = TicketComment.builder()
+                .ticketId(ticketId)
+                .content(content)
+                .authorId(authorId)
+                .authorName(authorName)
+                .authorType(authorType != null ? authorType : "AGENT")
+                .visibility(visibility != null ? visibility : "EXTERNAL")
+                .build();
+
+        ticketCommentRepository.save(comment);
+
+        // Record history
+        recordHistory(ticketId, ticket.getTicketNumber(), "COMMENT", "Added comment", 
+                      null, content, authorId, authorName, "Comment added");
+
+        log.info("Comment added to ticket {} by {}", ticket.getTicketNumber(), authorName);
+        return comment;
+    }
+
+    /**
+     * Get all comments for a ticket.
+     */
+    public List<TicketComment> getComments(Long ticketId) {
+        QueryWrapper<TicketComment> query = new QueryWrapper<>();
+        query.eq("ticket_id", ticketId)
+              .orderByAsc("created_at");
+        return ticketCommentRepository.list(query);
+    }
+
+    /**
+     * Record a history entry for ticket changes.
+     */
+    @Transactional
+    public TicketHistory recordHistory(Long ticketId, String ticketNumber, String changeType,
+                                        String fieldName, String oldValue, String newValue,
+                                        String changedBy, String changedByName, String changeReason) {
+        TicketHistory history = TicketHistory.builder()
+                .ticketId(ticketId)
+                .ticketNumber(ticketNumber)
+                .changeType(changeType)
+                .fieldName(fieldName)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .changedBy(changedBy)
+                .changedByName(changedByName)
+                .changeReason(changeReason)
+                .build();
+
+        ticketHistoryRepository.save(history);
+        log.debug("History recorded for ticket {} - {} changed by {}", 
+                  ticketNumber, fieldName, changedBy);
+        return history;
+    }
+
+    /**
+     * Full update of a ticket (PUT).
+     */
+    @Transactional
+    public Ticket updateTicket(Long ticketId, TicketUpdateDTO dto) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        // Update fields if provided
+        if (dto.getTitle() != null) ticket.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) ticket.setDescription(dto.getDescription());
+        if (dto.getCategory() != null) ticket.setCategory(dto.getCategory());
+        if (dto.getSubCategory() != null) ticket.setSubCategory(dto.getSubCategory());
+        if (dto.getItem() != null) ticket.setItem(dto.getItem());
+        if (dto.getStatus() != null) ticket.setStatus(dto.getStatus());
+        if (dto.getPriority() != null) ticket.setPriority(dto.getPriority());
+        if (dto.getUrgency() != null) ticket.setUrgency(dto.getUrgency());
+        if (dto.getImpact() != null) ticket.setImpact(dto.getImpact());
+        if (dto.getAssignedTo() != null) ticket.setAssignedTo(dto.getAssignedTo());
+        if (dto.getAssignedGroup() != null) ticket.setAssignedGroup(dto.getAssignedGroup());
+        if (dto.getAssignmentReason() != null) ticket.setAssignmentReason(dto.getAssignmentReason());
+        if (dto.getRequesterId() != null) ticket.setRequesterId(dto.getRequesterId());
+        if (dto.getRequesterName() != null) ticket.setRequesterName(dto.getRequesterName());
+        if (dto.getRequesterEmail() != null) ticket.setRequesterEmail(dto.getRequesterEmail());
+        if (dto.getRequesterDepartment() != null) ticket.setRequesterDepartment(dto.getRequesterDepartment());
+        if (dto.getRequesterPriority() != null) ticket.setRequesterPriority(dto.getRequesterPriority());
+        if (dto.getSlaTier() != null) ticket.setSlaTier(dto.getSlaTier());
+        if (dto.getAssetId() != null) ticket.setAssetId(dto.getAssetId());
+        if (dto.getAssetName() != null) ticket.setAssetName(dto.getAssetName());
+        if (dto.getWorkflowInstanceId() != null) ticket.setWorkflowInstanceId(dto.getWorkflowInstanceId());
+        if (dto.getCurrentWorkflowStep() != null) ticket.setCurrentWorkflowStep(dto.getCurrentWorkflowStep());
+        if (dto.getAffectedUsers() != null) ticket.setAffectedUsers(dto.getAffectedUsers());
+        if (dto.getBusinessValue() != null) ticket.setBusinessValue(dto.getBusinessValue());
+        if (dto.getDowntimeImpact() != null) ticket.setDowntimeImpact(dto.getDowntimeImpact());
+        if (dto.getLocation() != null) ticket.setLocation(dto.getLocation());
+        if (dto.getResolutionCode() != null) ticket.setResolutionCode(dto.getResolutionCode());
+        if (dto.getResolutionNotes() != null) ticket.setResolutionNotes(dto.getResolutionNotes());
+        if (dto.getClosureNotes() != null) ticket.setClosureNotes(dto.getClosureNotes());
+        if (dto.getSource() != null) ticket.setSource(dto.getSource());
+        if (dto.getChannel() != null) ticket.setChannel(dto.getChannel());
+        if (dto.getExternalTicketId() != null) ticket.setExternalTicketId(dto.getExternalTicketId());
+
+        ticketRepository.updateById(ticket);
+        log.info("Ticket {} fully updated", ticket.getTicketNumber());
+        return ticket;
+    }
+
+    /**
+     * Delete a ticket by ID.
+     */
+    @Transactional
+    public void deleteTicket(Long ticketId) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+        ticketRepository.removeById(ticketId);
+        log.info("Ticket {} deleted", ticket.getTicketNumber());
+    }
+
+    /**
+     * Submit satisfaction rating for a ticket.
+     */
+    @Transactional
+    public Ticket submitSatisfaction(Long ticketId, Integer rating, String comment) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        if (rating < 1 || rating > 5) {
+            throw new BusinessException("INVALID_RATING", "Rating must be between 1 and 5");
+        }
+
+        ticket.setSatisfactionRating(rating);
+        ticket.setSatisfactionComment(comment);
+
+        // Record satisfaction in history
+        recordHistory(ticketId, ticket.getTicketNumber(), "SATISFACTION", "satisfactionRating",
+                      null, String.valueOf(rating), ticket.getRequesterId(), ticket.getRequesterName(),
+                      "Customer satisfaction submitted");
+
+        ticketRepository.updateById(ticket);
+        log.info("Satisfaction submitted for ticket {}: rating={}", ticket.getTicketNumber(), rating);
+
+        return ticket;
     }
 
     /**

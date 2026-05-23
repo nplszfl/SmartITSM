@@ -2,6 +2,7 @@ package com.smartitsm.ticket.controller;
 
 import com.smartitsm.common.dto.ApiResponse;
 import com.smartitsm.ticket.dto.TicketCreateDTO;
+import com.smartitsm.ticket.dto.TicketUpdateDTO;
 import com.smartitsm.ticket.entity.Ticket;
 import com.smartitsm.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
@@ -88,5 +89,34 @@ public class TicketController {
     @GetMapping("/stats")
     public ApiResponse<TicketService.TicketStats> getStats() {
         return ApiResponse.ok(ticketService.getTicketStats());
+    }
+
+    /**
+     * Full update of a ticket (PUT).
+     */
+    @PutMapping("/{id}")
+    public ApiResponse<Ticket> updateTicket(@PathVariable Long id, @RequestBody TicketUpdateDTO dto) {
+        Ticket ticket = ticketService.updateTicket(id, dto);
+        return ApiResponse.ok(ticket);
+    }
+
+    /**
+     * Delete a ticket.
+     */
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteTicket(@PathVariable Long id) {
+        ticketService.deleteTicket(id);
+        return ApiResponse.ok(null);
+    }
+
+    /**
+     * Submit satisfaction rating for a ticket.
+     */
+    @PostMapping("/{id}/satisfaction")
+    public ApiResponse<Ticket> submitSatisfaction(@PathVariable Long id,
+                                                   @RequestParam Integer rating,
+                                                   @RequestParam(required = false) String comment) {
+        Ticket ticket = ticketService.submitSatisfaction(id, rating, comment);
+        return ApiResponse.ok(ticket);
     }
 }

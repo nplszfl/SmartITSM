@@ -4,6 +4,8 @@ import com.smartitsm.common.dto.ApiResponse;
 import com.smartitsm.ticket.dto.TicketCreateDTO;
 import com.smartitsm.ticket.dto.TicketUpdateDTO;
 import com.smartitsm.ticket.entity.Ticket;
+import com.smartitsm.ticket.entity.TicketComment;
+import com.smartitsm.ticket.entity.TicketHistory;
 import com.smartitsm.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -118,5 +120,49 @@ public class TicketController {
                                                    @RequestParam(required = false) String comment) {
         Ticket ticket = ticketService.submitSatisfaction(id, rating, comment);
         return ApiResponse.ok(ticket);
+    }
+
+    // ==================== Ticket Comments ====================
+
+    /**
+     * Add a comment to a ticket.
+     */
+    @PostMapping("/{id}/comments")
+    public ApiResponse<TicketComment> addComment(@PathVariable Long id,
+                                                 @RequestParam String content,
+                                                 @RequestParam String authorId,
+                                                 @RequestParam String authorName,
+                                                 @RequestParam(required = false) String authorType,
+                                                 @RequestParam(required = false) String visibility) {
+        TicketComment comment = ticketService.addComment(id, content, authorId, authorName, authorType, visibility);
+        return ApiResponse.ok(comment);
+    }
+
+    /**
+     * Get all comments for a ticket.
+     */
+    @GetMapping("/{id}/comments")
+    public ApiResponse<List<TicketComment>> getComments(@PathVariable Long id) {
+        return ApiResponse.ok(ticketService.getComments(id));
+    }
+
+    // ==================== Ticket History ====================
+
+    /**
+     * Record a history entry for a ticket.
+     */
+    @PostMapping("/{id}/history")
+    public ApiResponse<TicketHistory> recordHistory(@PathVariable Long id,
+                                                     @RequestParam String changeType,
+                                                     @RequestParam(required = false) String fieldName,
+                                                     @RequestParam(required = false) String oldValue,
+                                                     @RequestParam(required = false) String newValue,
+                                                     @RequestParam String changedBy,
+                                                     @RequestParam String changedByName,
+                                                     @RequestParam(required = false) String changeReason) {
+        Ticket ticket = ticketService.getTicketWithAIInsights(id);
+        TicketHistory history = ticketService.recordHistory(id, ticket.getTicketNumber(),
+                changeType, fieldName, oldValue, newValue, changedBy, changedByName, changeReason);
+        return ApiResponse.ok(history);
     }
 }

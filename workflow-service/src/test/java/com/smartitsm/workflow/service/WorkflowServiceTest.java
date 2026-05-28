@@ -66,15 +66,20 @@ class WorkflowServiceTest {
         dto.setTicketNumber("TICKET-001");
         dto.setTriggeredBy("admin");
 
-        WorkflowDefinition definition = new WorkflowDefinition();
-        definition.setId(1L);
-        definition.setName("incident-resolution");
-        definition.setVersion("1.0");
-        definition.setStepsJson("[{\"name\":\" triage \"},{\"name\":\" resolution \"}]");
+        WorkflowDefinition definition = WorkflowDefinition.builder()
+                .name("incident-resolution")
+                .description("Incident resolution workflow")
+                .version("1.0")
+                .category("TICKET")
+                .stepsJson("[{\"name\":\"triage\"},{\"name\":\"resolution\"}]")
+                .isActive(true)
+                .slaHours("24")
+                .createdBy("system")
+                .build();
 
         when(definitionRepository.selectOne(any())).thenReturn(definition);
-        when(instanceRepository.insert(any(WorkflowInstance.class))).thenReturn(1L);
-        when(stepRepository.insert(any(WorkflowStep.class))).thenReturn(1L);
+        when(instanceRepository.insert(any(WorkflowInstance.class))).thenReturn(1);
+        when(stepRepository.insert(any(WorkflowStep.class))).thenReturn(1);
         when(stepRepository.selectList(any())).thenReturn(new ArrayList<>());
         when(instanceRepository.selectById(any())).thenReturn(createTestInstance());
 

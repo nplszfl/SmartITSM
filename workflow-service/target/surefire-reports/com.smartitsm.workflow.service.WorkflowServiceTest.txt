@@ -1,0 +1,43 @@
+-------------------------------------------------------------------------------
+Test set: com.smartitsm.workflow.service.WorkflowServiceTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 2, Errors: 1, Skipped: 0, Time elapsed: 0.763 s <<< FAILURE! -- in com.smartitsm.workflow.service.WorkflowServiceTest
+com.smartitsm.workflow.service.WorkflowServiceTest.advanceWorkflow_completesCurrentStepAndStartsNext -- Time elapsed: 0.716 s <<< FAILURE!
+org.mockito.exceptions.verification.TooManyActualInvocations: 
+
+stepRepository.updateById(
+    <any com.smartitsm.workflow.entity.WorkflowStep>
+);
+Wanted 1 time:
+-> at com.smartitsm.workflow.service.WorkflowServiceTest.advanceWorkflow_completesCurrentStepAndStartsNext(WorkflowServiceTest.java:145)
+But was 2 times:
+-> at com.smartitsm.workflow.service.WorkflowService.advanceWorkflow(WorkflowService.java:124)
+-> at com.smartitsm.workflow.service.WorkflowService.advanceWorkflow(WorkflowService.java:149)
+
+
+	at com.smartitsm.workflow.service.WorkflowServiceTest.advanceWorkflow_completesCurrentStepAndStartsNext(WorkflowServiceTest.java:145)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+com.smartitsm.workflow.service.WorkflowServiceTest.advanceWorkflow_whenNoMoreSteps_completesWorkflow -- Time elapsed: 0.002 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.time.temporal.Temporal.until(java.time.temporal.Temporal, java.time.temporal.TemporalUnit)" because "temporal1Inclusive" is null
+	at java.base/java.time.temporal.ChronoUnit.between(ChronoUnit.java:272)
+	at com.smartitsm.workflow.service.WorkflowService.advanceWorkflow(WorkflowService.java:123)
+	at com.smartitsm.workflow.service.WorkflowServiceTest.advanceWorkflow_whenNoMoreSteps_completesWorkflow(WorkflowServiceTest.java:171)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+com.smartitsm.workflow.service.WorkflowServiceTest.getStats_calculatesCorrectStatistics -- Time elapsed: 0.004 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 5L
+ but was: 10L
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:502)
+	at com.smartitsm.workflow.service.WorkflowServiceTest.getStats_calculatesCorrectStatistics(WorkflowServiceTest.java:256)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+

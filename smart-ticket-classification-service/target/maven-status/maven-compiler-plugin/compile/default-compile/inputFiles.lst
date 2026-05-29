@@ -1,0 +1,8 @@
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/dto/ClassificationStats.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/dto/ClassificationRequest.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/dto/ClassificationResponse.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/entity/TicketClassification.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/controller/ClassificationController.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/repository/TicketClassificationRepository.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/SmartTicketClassificationApplication.java
+/Users/huanghuixiang/smartitsm/smart-ticket-classification-service/src/main/java/com/smartitsm/classification/service/TicketClassificationService.java

@@ -1,0 +1,12 @@
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/dto/InventoryTaskCreateDTO.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/entity/InventoryTask.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/entity/AssetInventory.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/controller/AssetInventoryController.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/service/AssetInventoryService.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/repository/AssetChangeHistoryRepository.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/dto/AssetChangeHistoryDTO.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/repository/InventoryTaskRepository.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/dto/AssetUsageStatsDTO.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/entity/AssetChangeHistory.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/repository/AssetInventoryRepository.java
+/Users/huanghuixiang/smartitsm/asset-inventory-service/src/main/java/com/smartitsm/asset/AssetInventoryApplication.java

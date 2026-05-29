@@ -26,6 +26,9 @@
         <module>ticket-service</module>
         <module>workflow-service</module>
         <module>analytics-service</module>
+        <module>smart-ticket-classification-service</module>
+        <module>sla-alert-service</module>
+        <module>asset-inventory-service</module>
     </modules>
 
     <properties>

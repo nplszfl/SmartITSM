@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST API controller for SLA monitoring and alerts.
@@ -95,5 +96,81 @@ public class SlaAlertController {
         if (alert != null) {
             slaAlertService.sendAlert(alert, channel);
         }
+    }
+
+    /**
+     * Get alerts by ticket.
+     */
+    @GetMapping("/alerts/ticket/{ticketId}")
+    public List<SlaAlert> getAlertsByTicket(@PathVariable Long ticketId) {
+        return slaAlertService.getAlertsByTicket(ticketId);
+    }
+
+    /**
+     * Get breached alerts.
+     */
+    @GetMapping("/alerts/breached")
+    public List<SlaAlert> getBreachedAlerts() {
+        return slaAlertService.getBreachedAlerts();
+    }
+
+    /**
+     * Get alerts near breach.
+     */
+    @GetMapping("/alerts/near-breach")
+    public List<SlaAlert> getAlertsNearBreach() {
+        return slaAlertService.getAlertsNearBreach();
+    }
+
+    /**
+     * Get alert summary by level.
+     */
+    @GetMapping("/alerts/summary")
+    public Map<String, Long> getAlertSummary() {
+        return slaAlertService.getAlertSummary();
+    }
+
+    /**
+     * Get top breaches.
+     */
+    @GetMapping("/alerts/top-breaches")
+    public List<SlaAlert> getTopBreaches(@RequestParam(defaultValue = "10") int limit) {
+        return slaAlertService.getTopBreaches(limit);
+    }
+
+    /**
+     * Resolve an alert.
+     */
+    @PostMapping("/alerts/{alertId}/resolve")
+    public SlaAlert resolveAlert(@PathVariable Long alertId) {
+        return slaAlertService.resolveAlert(alertId);
+    }
+
+    /**
+     * Bulk acknowledge alerts by tier.
+     */
+    @PostMapping("/alerts/bulk-acknowledge")
+    public int bulkAcknowledgeByTier(
+            @RequestParam String slaTier,
+            @RequestParam String acknowledgedBy) {
+        return slaAlertService.bulkAcknowledgeByTier(slaTier, acknowledgedBy);
+    }
+
+    /**
+     * Clear resolved alerts.
+     */
+    @DeleteMapping("/alerts/clear")
+    public int clearResolvedAlerts(@RequestParam(defaultValue = "30") int olderThanDays) {
+        return slaAlertService.clearResolvedAlerts(olderThanDays);
+    }
+
+    /**
+     * Estimate resolution time.
+     */
+    @GetMapping("/estimate-resolution")
+    public Double estimateResolutionTime(
+            @RequestParam Long ticketId,
+            @RequestParam(required = false) String slaType) {
+        return slaAlertService.estimateResolutionTime(ticketId, slaType);
     }
 }

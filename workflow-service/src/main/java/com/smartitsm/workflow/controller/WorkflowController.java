@@ -53,6 +53,37 @@ public class WorkflowController {
         return ApiResponse.ok(workflowService.cancelWorkflow(instanceId, reason));
     }
 
+    @PostMapping("/{instanceId}/pause")
+    public ApiResponse<WorkflowResponseDTO> pauseWorkflow(
+            @PathVariable Long instanceId,
+            @RequestParam String reason) {
+        return ApiResponse.ok(workflowService.pauseWorkflow(instanceId, reason));
+    }
+
+    @PostMapping("/{instanceId}/resume")
+    public ApiResponse<WorkflowResponseDTO> resumeWorkflow(@PathVariable Long instanceId) {
+        return ApiResponse.ok(workflowService.resumeWorkflow(instanceId));
+    }
+
+    @PostMapping("/{instanceId}/fail")
+    public ApiResponse<WorkflowResponseDTO> failWorkflow(
+            @PathVariable Long instanceId,
+            @RequestParam String errorMessage) {
+        return ApiResponse.ok(workflowService.failWorkflow(instanceId, errorMessage));
+    }
+
+    @PostMapping("/{instanceId}/retry")
+    public ApiResponse<WorkflowResponseDTO> retryWorkflow(@PathVariable Long instanceId) {
+        return ApiResponse.ok(workflowService.retryWorkflow(instanceId));
+    }
+
+    @PostMapping("/{instanceId}/skip-step")
+    public ApiResponse<WorkflowResponseDTO> skipStep(
+            @PathVariable Long instanceId,
+            @RequestParam String reason) {
+        return ApiResponse.ok(workflowService.skipStep(instanceId, reason));
+    }
+
     @GetMapping("/ticket/{ticketId}")
     public ApiResponse<List<WorkflowResponseDTO>> getByTicket(@PathVariable Long ticketId) {
         return ApiResponse.ok(workflowService.getInstancesByTicket(ticketId));

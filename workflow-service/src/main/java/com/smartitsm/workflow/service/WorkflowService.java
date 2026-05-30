@@ -210,6 +210,205 @@ public class WorkflowService {
         return toResponseDTO(instance);
     }
 
+    /**
+     * Pause a running workflow instance.
+     */
+    @Transactional
+    public WorkflowResponseDTO pauseWorkflow(Long instanceId, String reason) {
+        WorkflowInstance instance = instanceRepository.selectById(instanceId);
+        if (instance == null) {
+            throw new BusinessException("INSTANCE_NOT_FOUND", "Workflow instance not found: " + instanceId);
+        }
+
+        if (!"RUNNING".equals(instance.getStatus())) {
+            throw new BusinessException("WORKFLOW_NOT_RUNNING", "Workflow is not running: " + instance.getStatus());
+        }
+
+        instance.setStatus("PAUSED");
+        instance.setResult("PAUSED: " + reason);
+        instanceRepository.updateById(instance);
+
+        // Mark current step as paused
+        WorkflowStep currentStep = findCurrentStep(instanceId);
+        if (currentStep != null) {
+            currentStep.setStatus("PAUSED");
+            stepRepository.updateById(currentStep);
+        }
+
+        log.info("Workflow {} paused: {}", instanceId, reason);
+        return toResponseDTO(instance);
+    }
+
+    /**
+     * Resume a paused workflow instance.
+     */
+    @Transactional
+    public WorkflowResponseDTO resumeWorkflow(Long instanceId) {
+        WorkflowInstance instance = instanceRepository.selectById(instanceId);
+        if (instance == null) {
+            throw new BusinessException("INSTANCE_NOT_FOUND", "Workflow instance not found: " + instanceId);
+        }
+
+        if (!"PAUSED".equals(instance.getStatus())) {
+            throw new BusinessException("WORKFLOW_NOT_PAUSED", "Workflow is not paused: " + instance.getStatus());
+        }
+
+        instance.setStatus("RUNNING");
+        instance.setResult(null);
+        instanceRepository.updateById(instance);
+
+        // Resume the paused step
+        WorkflowStep pausedStep = stepRepository.selectOne(
+            new QueryWrapper<WorkflowStep>()
+                .eq("workflow_instance_id", instanceId)
+                .eq("status", "PAUSED")
+                .last("LIMIT 1"));
+        
+        if (pausedStep != null) {
+            pausedStep.setStatus("RUNNING");
+            pausedStep.setStartedAt(LocalDateTime.now());
+            stepRepository.updateById(pausedStep);
+        }
+
+        log.info("Workflow {} resumed", instanceId);
+        return toResponseDTO(instance);
+    }
+
+    /**
+     * Fail a workflow instance.
+     */
+    @Transactional
+    public WorkflowResponseDTO failWorkflow(Long instanceId, String errorMessage) {
+        WorkflowInstance instance = instanceRepository.selectById(instanceId);
+        if (instance == null) {
+            throw new BusinessException("INSTANCE_NOT_FOUND", "Workflow instance not found: " + instanceId);
+        }
+
+        instance.setStatus("FAILED");
+        instance.setCompletedAt(LocalDateTime.now());
+        instance.setDurationSeconds(
+            ChronoUnit.SECONDS.between(instance.getStartedAt(), LocalDateTime.now()));
+        instance.setResult("FAILED");
+        instance.setErrorMessage(errorMessage);
+        instanceRepository.updateById(instance);
+
+        // Mark pending steps as skipped
+        stepRepository.update(null,
+            new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<WorkflowStep>()
+                .eq("workflow_instance_id", instanceId)
+                .eq("status", "PENDING")
+                .set("status", "SKIPPED"));
+
+        log.info("Workflow {} failed: {}", instanceId, errorMessage);
+        return toResponseDTO(instance);
+    }
+
+    /**
+     * Retry a failed or cancelled workflow.
+     */
+    @Transactional
+    public WorkflowResponseDTO retryWorkflow(Long instanceId) {
+        WorkflowInstance instance = instanceRepository.selectById(instanceId);
+        if (instance == null) {
+            throw new BusinessException("INSTANCE_NOT_FOUND", "Workflow instance not found: " + instanceId);
+        }
+
+        if (!"FAILED".equals(instance.getStatus()) && !"CANCELLED".equals(instance.getStatus())) {
+            throw new BusinessException("INVALID_STATUS", "Can only retry failed or cancelled workflows: " + instance.getStatus());
+        }
+
+        // Get workflow definition
+        WorkflowDefinition definition = findActiveDefinition(instance.getWorkflowName());
+        if (definition == null) {
+            throw new BusinessException("WORKFLOW_NOT_FOUND", "Workflow definition not found: " + instance.getWorkflowName());
+        }
+
+        // Reset instance
+        instance.setStatus("RUNNING");
+        instance.setCurrentStep(null);
+        instance.setCompletedSteps(0);
+        instance.setStartedAt(LocalDateTime.now());
+        instance.setCompletedAt(null);
+        instance.setDurationSeconds(null);
+        instance.setResult(null);
+        instance.setErrorMessage(null);
+        instanceRepository.updateById(instance);
+
+        // Reset all steps to PENDING
+        List<WorkflowStep> allSteps = stepRepository.selectList(
+            new QueryWrapper<WorkflowStep>()
+                .eq("workflow_instance_id", instanceId)
+                .orderByAsc("step_order"));
+        
+        for (WorkflowStep step : allSteps) {
+            step.setStatus("PENDING");
+            step.setStartedAt(null);
+            step.setCompletedAt(null);
+            step.setDurationSeconds(null);
+            step.setNotes(null);
+            step.setOutputData(null);
+            stepRepository.updateById(step);
+        }
+
+        // Start first step
+        advanceWorkflow(instance.getId());
+
+        log.info("Workflow {} retried", instanceId);
+        return toResponseDTO(instance);
+    }
+
+    /**
+     * Skip the current step and move to next.
+     */
+    @Transactional
+    public WorkflowResponseDTO skipStep(Long instanceId, String reason) {
+        WorkflowInstance instance = instanceRepository.selectById(instanceId);
+        if (instance == null) {
+            throw new BusinessException("INSTANCE_NOT_FOUND", "Workflow instance not found: " + instanceId);
+        }
+
+        if (!"RUNNING".equals(instance.getStatus())) {
+            throw new BusinessException("WORKFLOW_NOT_RUNNING", "Workflow is not running: " + instance.getStatus());
+        }
+
+        WorkflowStep currentStep = findCurrentStep(instanceId);
+        if (currentStep != null) {
+            currentStep.setStatus("SKIPPED");
+            currentStep.setCompletedAt(LocalDateTime.now());
+            currentStep.setNotes("SKIPPED: " + reason);
+            currentStep.setDurationSeconds(
+                currentStep.getStartedAt() != null ? 
+                    ChronoUnit.SECONDS.between(currentStep.getStartedAt(), LocalDateTime.now()) : 0);
+            stepRepository.updateById(currentStep);
+            instance.setCompletedSteps(instance.getCompletedSteps() + 1);
+        }
+
+        log.info("Workflow {} step skipped: {}", instanceId, reason);
+        return advanceWorkflow(instanceId);
+    }
+
+    /**
+     * Get workflows by status.
+     */
+    public List<WorkflowResponseDTO> getWorkflowsByStatus(String status) {
+        QueryWrapper<WorkflowInstance> query = new QueryWrapper<>();
+        if (status != null) {
+            query.eq("status", status);
+        }
+        query.orderByDesc("started_at").last("LIMIT 100");
+        return instanceRepository.selectList(query).stream().map(this::toResponseDTO).toList();
+    }
+
+    /**
+     * Get workflow steps history for an instance.
+     */
+    public List<WorkflowStep> getWorkflowSteps(Long instanceId) {
+        return stepRepository.selectList(
+            new QueryWrapper<WorkflowStep>()
+                .eq("workflow_instance_id", instanceId)
+                .orderByAsc("step_order"));
+    }
+
     // ==================== Workflow Definitions ====================
 
     /**

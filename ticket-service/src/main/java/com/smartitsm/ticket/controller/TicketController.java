@@ -165,4 +165,104 @@ public class TicketController {
                 changeType, fieldName, oldValue, newValue, changedBy, changedByName, changeReason);
         return ApiResponse.ok(history);
     }
+
+    // ==================== Additional Business Functions ====================
+
+    /**
+     * Get ticket by ticket number.
+     */
+    @GetMapping("/number/{ticketNumber}")
+    public ApiResponse<Ticket> getTicketByNumber(@PathVariable String ticketNumber) {
+        Ticket ticket = ticketService.getTicketByTicketNumber(ticketNumber);
+        return ApiResponse.ok(ticket);
+    }
+
+    /**
+     * Get ticket history by ID.
+     */
+    @GetMapping("/{id}/history")
+    public ApiResponse<List<TicketHistory>> getTicketHistory(@PathVariable Long id) {
+        return ApiResponse.ok(ticketService.getTicketHistory(id));
+    }
+
+    /**
+     * Get ticket history by ticket number.
+     */
+    @GetMapping("/number/{ticketNumber}/history")
+    public ApiResponse<List<TicketHistory>> getTicketHistoryByNumber(@PathVariable String ticketNumber) {
+        return ApiResponse.ok(ticketService.getTicketHistoryByTicketNumber(ticketNumber));
+    }
+
+    /**
+     * Update a comment.
+     */
+    @PutMapping("/comments/{commentId}")
+    public ApiResponse<TicketComment> updateComment(@PathVariable Long commentId,
+                                                     @RequestParam String content,
+                                                     @RequestParam String authorId) {
+        return ApiResponse.ok(ticketService.updateComment(commentId, content, authorId));
+    }
+
+    /**
+     * Delete a comment.
+     */
+    @DeleteMapping("/comments/{commentId}")
+    public ApiResponse<Void> deleteComment(@PathVariable Long commentId,
+                                            @RequestParam(required = false) String deletedBy) {
+        ticketService.deleteComment(commentId, deletedBy);
+        return ApiResponse.ok(null);
+    }
+
+    /**
+     * Escalate a ticket's priority.
+     */
+    @PostMapping("/{id}/escalate")
+    public ApiResponse<Ticket> escalateTicket(@PathVariable Long id,
+                                              @RequestParam String priority,
+                                              @RequestParam(required = false) String reason) {
+        return ApiResponse.ok(ticketService.escalateTicket(id, priority, reason));
+    }
+
+    /**
+     * Reopen a resolved or closed ticket.
+     */
+    @PostMapping("/{id}/reopen")
+    public ApiResponse<Ticket> reopenTicket(@PathVariable Long id,
+                                             @RequestParam(required = false) String reason) {
+        return ApiResponse.ok(ticketService.reopenTicket(id, reason));
+    }
+
+    /**
+     * Bulk update ticket status.
+     */
+    @PostMapping("/bulk/status")
+    public ApiResponse<Integer> bulkUpdateStatus(@RequestParam List<Long> ticketIds,
+                                                 @RequestParam String status,
+                                                 @RequestParam(required = false) String changedBy) {
+        return ApiResponse.ok(ticketService.bulkUpdateStatus(ticketIds, status, changedBy));
+    }
+
+    /**
+     * Get tickets by assignee.
+     */
+    @GetMapping("/assignee/{assignee}")
+    public ApiResponse<List<Ticket>> getTicketsByAssignee(@PathVariable String assignee) {
+        return ApiResponse.ok(ticketService.getTicketsByAssignee(assignee));
+    }
+
+    /**
+     * Get tickets by requester.
+     */
+    @GetMapping("/requester/{requesterId}")
+    public ApiResponse<List<Ticket>> getTicketsByRequester(@PathVariable String requesterId) {
+        return ApiResponse.ok(ticketService.getTicketsByRequester(requesterId));
+    }
+
+    /**
+     * Get SLA countdown for a ticket.
+     */
+    @GetMapping("/{id}/sla-countdown")
+    public ApiResponse<TicketService.SLACountdown> getSLACountdown(@PathVariable Long id) {
+        return ApiResponse.ok(ticketService.getSLACountdown(id));
+    }
 }

@@ -6,6 +6,7 @@ com/smartitsm/ticket/dto/TicketUpdateDTO.class
 com/smartitsm/ticket/repository/TicketRepository.class
 com/smartitsm/ticket/controller/TicketController.class
 com/smartitsm/ticket/TicketServiceApplication.class
+com/smartitsm/ticket/service/TicketService$SLACountdown.class
 com/smartitsm/ticket/dto/TicketCreateDTO$TicketCreateDTOBuilder.class
 com/smartitsm/ticket/dto/TicketCreateDTO.class
 com/smartitsm/ticket/entity/TicketHistory.class

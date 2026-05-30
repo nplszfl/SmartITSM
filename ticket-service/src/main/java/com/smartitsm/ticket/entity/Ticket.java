@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 @Builder
 @Data
 @EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
 @TableName("t_ticket")
 public class Ticket extends BaseEntity {
 

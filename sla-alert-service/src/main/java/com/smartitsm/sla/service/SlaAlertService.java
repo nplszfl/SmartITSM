@@ -311,6 +311,145 @@ public class SlaAlertService {
     }
 
     /**
+     * Get SLA alerts for a specific ticket.
+     */
+    public List<SlaAlert> getAlertsByTicket(Long ticketId) {
+        return slaAlertRepository.list(
+            new QueryWrapper<SlaAlert>()
+                .eq("ticket_id", ticketId)
+                .orderByDesc("created_at"));
+    }
+
+    /**
+     * Get SLA alerts by tier (P1, P2, P3, P4).
+     */
+    public List<SlaAlert> getAlertsByTier(String slaTier) {
+        QueryWrapper<SlaAlert> query = new QueryWrapper<>();
+        query.in("alert_status", Arrays.asList("PENDING", "SENT", "ACKNOWLEDGED"));
+        if (slaTier != null) {
+            query.eq("sla_tier", slaTier);
+        }
+        return slaAlertRepository.list(query);
+    }
+
+    /**
+     * Get all breached SLA alerts.
+     */
+    public List<SlaAlert> getBreachedAlerts() {
+        return slaAlertRepository.list(
+            new QueryWrapper<SlaAlert>()
+                .eq("breached", true)
+                .orderByAsc("breached_at"));
+    }
+
+    /**
+     * Get alerts approaching breach (RED or ORANGE level).
+     */
+    public List<SlaAlert> getAlertsNearBreach() {
+        return slaAlertRepository.list(
+            new QueryWrapper<SlaAlert>()
+                .in("alert_level", Arrays.asList("RED", "ORANGE", "BREACHED"))
+                .in("alert_status", Arrays.asList("PENDING", "SENT", "ACKNOWLEDGED"))
+                .orderByAsc("remaining_seconds"));
+    }
+
+    /**
+     * Clear resolved alerts older than specified days.
+     */
+    @Transactional
+    public int clearResolvedAlerts(int olderThanDays) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
+        List<SlaAlert> resolvedAlerts = slaAlertRepository.list(
+            new QueryWrapper<SlaAlert>()
+                .eq("alert_status", "RESOLVED")
+                .lt("updated_at", cutoff));
+        
+        int count = 0;
+        for (SlaAlert alert : resolvedAlerts) {
+            slaAlertRepository.removeById(alert.getId());
+            count++;
+        }
+        log.info("Cleared {} resolved SLA alerts older than {} days", count, olderThanDays);
+        return count;
+    }
+
+    /**
+     * Resolve an alert manually.
+     */
+    @Transactional
+    public SlaAlert resolveAlert(Long alertId) {
+        SlaAlert alert = slaAlertRepository.getById(alertId);
+        if (alert != null) {
+            alert.setAlertStatus("RESOLVED");
+            slaAlertRepository.updateById(alert);
+            log.info("Alert {} resolved for ticket {}", alertId, alert.getTicketNumber());
+        }
+        return alert;
+    }
+
+    /**
+     * Bulk acknowledge alerts by tier.
+     */
+    @Transactional
+    public int bulkAcknowledgeByTier(String slaTier, String acknowledgedBy) {
+        QueryWrapper<SlaAlert> query = new QueryWrapper<>();
+        query.in("alert_status", Arrays.asList("PENDING", "SENT"))
+            .eq("sla_tier", slaTier);
+        
+        List<SlaAlert> alerts = slaAlertRepository.list(query);
+        for (SlaAlert alert : alerts) {
+            alert.setAlertStatus("ACKNOWLEDGED");
+            alert.setAlertMessage(alert.getAlertMessage() + " | Acknowledged by: " + acknowledgedBy);
+            slaAlertRepository.updateById(alert);
+        }
+        log.info("Bulk acknowledged {} {} alerts by {}", alerts.size(), slaTier, acknowledgedBy);
+        return alerts.size();
+    }
+
+    /**
+     * Get alert summary by level.
+     */
+    public Map<String, Long> getAlertSummary() {
+        Map<String, Long> summary = new HashMap<>();
+        for (String level : Arrays.asList("GREEN", "YELLOW", "ORANGE", "RED", "BREACHED")) {
+            summary.put(level, slaAlertRepository.count(
+                new QueryWrapper<SlaAlert>()
+                    .eq("alert_level", level)
+                    .in("alert_status", Arrays.asList("PENDING", "SENT", "ACKNOWLEDGED"))));
+        }
+        return summary;
+    }
+
+    /**
+     * Get top breaches (most overdue tickets).
+     */
+    public List<SlaAlert> getTopBreaches(int limit) {
+        return slaAlertRepository.list(
+            new QueryWrapper<SlaAlert>()
+                .eq("breached", true)
+                .orderByAsc("breach_duration_seconds")
+                .last("LIMIT " + limit));
+    }
+
+    /**
+     * Calculate estimated resolution time based on current pace.
+     */
+    public Double estimateResolutionTime(Long ticketId, String slaType) {
+        SlaAlert alert = findExistingAlert(ticketId, slaType);
+        if (alert == null || alert.getRemainingSeconds() <= 0) {
+            return null;
+        }
+        // Simple estimate: based on remaining time and progress
+        long totalSeconds = Duration.between(alert.getCreatedAt(), alert.getSlaDueAt()).getSeconds();
+        double progress = 1.0 - ((double) alert.getRemainingSeconds() / totalSeconds);
+        if (progress <= 0) return null;
+        
+        double avgSecondsPerPercent = (totalSeconds * progress) / (progress * 100);
+        double remainingPercent = (double) alert.getRemainingSeconds() / totalSeconds * 100;
+        return avgSecondsPerPercent * remainingPercent / 60; // in minutes
+    }
+
+    /**
      * Scheduled task to check and send alerts every minute.
      */
     @Scheduled(fixedRate = 60000)

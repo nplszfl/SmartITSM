@@ -289,4 +289,181 @@ class WorkflowServiceTest {
         instance.setId(1L);
         return instance;
     }
+
+    @Test
+    void pauseWorkflow_setsStatusToPaused() {
+        // Arrange
+        Long instanceId = 1L;
+        WorkflowInstance instance = createTestInstance();
+        instance.setId(instanceId);
+        instance.setStatus("RUNNING");
+
+        WorkflowStep currentStep = new WorkflowStep();
+        currentStep.setId(1L);
+        currentStep.setWorkflowInstanceId(instanceId);
+        currentStep.setStepName("triage");
+        currentStep.setStatus("RUNNING");
+
+        when(instanceRepository.selectById(instanceId)).thenReturn(instance);
+        when(stepRepository.selectOne(any())).thenReturn(currentStep);
+        when(instanceRepository.updateById(any())).thenReturn(1);
+        when(stepRepository.updateById(any())).thenReturn(1);
+
+        // Act
+        WorkflowResponseDTO result = workflowService.pauseWorkflow(instanceId, "Maintenance window");
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("PAUSED");
+    }
+
+    @Test
+    void resumeWorkflow_resumesPausedWorkflow() {
+        // Arrange
+        Long instanceId = 1L;
+        WorkflowInstance instance = createTestInstance();
+        instance.setId(instanceId);
+        instance.setStatus("PAUSED");
+
+        WorkflowStep pausedStep = new WorkflowStep();
+        pausedStep.setId(1L);
+        pausedStep.setWorkflowInstanceId(instanceId);
+        pausedStep.setStepName("triage");
+        pausedStep.setStatus("PAUSED");
+        pausedStep.setStartedAt(LocalDateTime.now().minusMinutes(10));
+
+        WorkflowStep nextStep = new WorkflowStep();
+        nextStep.setId(2L);
+        nextStep.setWorkflowInstanceId(instanceId);
+        nextStep.setStepName("resolution");
+        nextStep.setStatus("PENDING");
+
+        when(instanceRepository.selectById(instanceId)).thenReturn(instance);
+        when(stepRepository.selectOne(any())).thenReturn(pausedStep);
+        when(stepRepository.selectList(any())).thenReturn(List.of(nextStep));
+        when(instanceRepository.updateById(any())).thenReturn(1);
+        when(stepRepository.updateById(any())).thenReturn(1);
+
+        // Act
+        WorkflowResponseDTO result = workflowService.resumeWorkflow(instanceId);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("RUNNING");
+    }
+
+    @Test
+    void failWorkflow_marksInstanceAsFailed() {
+        // Arrange
+        Long instanceId = 1L;
+        WorkflowInstance instance = createTestInstance();
+        instance.setId(instanceId);
+        instance.setStatus("RUNNING");
+        instance.setStartedAt(LocalDateTime.now().minusMinutes(30));
+
+        when(instanceRepository.selectById(instanceId)).thenReturn(instance);
+        when(instanceRepository.updateById(any())).thenReturn(1);
+        when(stepRepository.update(any(), any())).thenReturn(1);
+
+        // Act
+        WorkflowResponseDTO result = workflowService.failWorkflow(instanceId, "External dependency unavailable");
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void skipStep_marksCurrentStepAsSkipped() {
+        // Arrange
+        Long instanceId = 1L;
+        WorkflowInstance instance = createTestInstance();
+        instance.setId(instanceId);
+        instance.setStatus("RUNNING");
+
+        WorkflowStep currentStep = new WorkflowStep();
+        currentStep.setId(1L);
+        currentStep.setWorkflowInstanceId(instanceId);
+        currentStep.setStepName("triage");
+        currentStep.setStatus("RUNNING");
+        currentStep.setStartedAt(LocalDateTime.now().minusMinutes(5));
+
+        WorkflowStep nextStep = new WorkflowStep();
+        nextStep.setId(2L);
+        nextStep.setWorkflowInstanceId(instanceId);
+        nextStep.setStepName("resolution");
+        nextStep.setStatus("PENDING");
+
+        when(instanceRepository.selectById(instanceId)).thenReturn(instance);
+        when(stepRepository.selectOne(any())).thenReturn(currentStep);
+        when(stepRepository.selectList(any())).thenReturn(List.of(nextStep));
+        when(stepRepository.updateById(any())).thenReturn(1);
+        when(instanceRepository.updateById(any())).thenReturn(1);
+
+        // Act
+        WorkflowResponseDTO result = workflowService.skipStep(instanceId, "Not applicable for this ticket");
+
+        // Assert
+        assertThat(result).isNotNull();
+        verify(stepRepository).updateById(any(WorkflowStep.class));
+    }
+
+    @Test
+    void getWorkflowsByStatus_returnsFilteredWorkflows() {
+        // Arrange
+        WorkflowInstance cancelled = createTestInstance();
+        cancelled.setStatus("CANCELLED");
+
+        when(instanceRepository.selectList(any())).thenReturn(List.of(cancelled));
+
+        // Act
+        List<WorkflowResponseDTO> result = workflowService.getWorkflowsByStatus("CANCELLED");
+
+        // Assert
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getStatus()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void retryWorkflow_restartsCancelledWorkflow() {
+        // Arrange
+        Long instanceId = 1L;
+        WorkflowInstance instance = createTestInstance();
+        instance.setId(instanceId);
+        instance.setStatus("CANCELLED");
+        instance.setCompletedSteps(1);
+
+        WorkflowStep skippedStep = new WorkflowStep();
+        skippedStep.setId(1L);
+        skippedStep.setWorkflowInstanceId(instanceId);
+        skippedStep.setStepName("triage");
+        skippedStep.setStatus("COMPLETED");
+
+        WorkflowStep pendingStep = new WorkflowStep();
+        pendingStep.setId(2L);
+        pendingStep.setWorkflowInstanceId(instanceId);
+        pendingStep.setStepName("resolution");
+        pendingStep.setStatus("SKIPPED");
+
+        WorkflowDefinition definition = WorkflowDefinition.builder()
+                .name("incident-resolution")
+                .version("1.0")
+                .stepsJson("[{\"name\":\"triage\"},{\"name\":\"resolution\"}]")
+                .isActive(true)
+                .build();
+
+        when(instanceRepository.selectById(instanceId)).thenReturn(instance);
+        when(definitionRepository.selectOne(any())).thenReturn(definition);
+        when(stepRepository.selectList(any())).thenReturn(List.of(skippedStep, pendingStep));
+        when(stepRepository.updateById(any())).thenReturn(1);
+        when(instanceRepository.updateById(any())).thenReturn(1);
+
+        // Act
+        WorkflowResponseDTO result = workflowService.retryWorkflow(instanceId);
+
+        // Assert
+        assertThat(result).isNotNull();
+        verify(instanceRepository).updateById(any(WorkflowInstance.class));
+        verify(stepRepository, atLeastOnce()).updateById(any(WorkflowStep.class));
+    }
 }

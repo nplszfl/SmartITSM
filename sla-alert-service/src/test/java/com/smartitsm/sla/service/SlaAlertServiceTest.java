@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -86,7 +87,6 @@ class SlaAlertServiceTest {
     void testMonitorSla_UpdatesExistingAlert() {
         // Arrange
         SlaAlert existingAlert = SlaAlert.builder()
-            .id(1L)
             .ticketId(1L)
             .ticketNumber("TKT-20240529-0001")
             .slaType("RESOLUTION")
@@ -94,6 +94,7 @@ class SlaAlertServiceTest {
             .alertStatus("PENDING")
             .remainingSeconds(14400L)
             .build();
+        existingAlert.setId(1L);
 
         when(slaAlertRepository.getOne(any())).thenReturn(existingAlert);
         when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
@@ -115,7 +116,7 @@ class SlaAlertServiceTest {
             .ticketNumber("TKT-20240529-0002")
             .slaType("RESOLUTION")
             .slaTier("P1")
-            .resolutionDue(LocalDateTime.now().minusMinutes(30))  // Already breached
+            .resolutionDue(LocalDateTime.now().minusMinutes(30))
             .firstResponseDue(LocalDateTime.now().minusHours(1))
             .assignedTo("agent001")
             .assignedGroup("L2_Support")
@@ -145,7 +146,6 @@ class SlaAlertServiceTest {
     void testGetSlaCountdown_Success() {
         // Arrange
         SlaAlert alert = SlaAlert.builder()
-            .id(1L)
             .ticketId(1L)
             .ticketNumber("TKT-20240529-0001")
             .slaType("RESOLUTION")
@@ -159,8 +159,9 @@ class SlaAlertServiceTest {
             .ticketStatus("OPEN")
             .assignedTo("agent001")
             .assignedGroup("L2_Support")
-            .createdAt(LocalDateTime.now().minusHours(2))
             .build();
+        alert.setId(1L);
+        alert.setCreatedAt(LocalDateTime.now().minusHours(2));
 
         when(slaAlertRepository.getOne(any())).thenReturn(alert);
 
@@ -259,7 +260,7 @@ class SlaAlertServiceTest {
     void testRecordCompliance_Breached() {
         // Arrange
         LocalDateTime slaDue = LocalDateTime.now().plusHours(4);
-        LocalDateTime completed = LocalDateTime.now().plusHours(5);  // Took 5 hours, SLA was 4
+        LocalDateTime completed = LocalDateTime.now().plusHours(5);
 
         when(slaComplianceRepository.save(any(SlaCompliance.class)))
             .thenAnswer(invocation -> {
@@ -283,10 +284,10 @@ class SlaAlertServiceTest {
     void testAcknowledgeAlert() {
         // Arrange
         SlaAlert alert = SlaAlert.builder()
-            .id(1L)
             .ticketNumber("TKT-20240529-0001")
             .alertStatus("SENT")
             .build();
+        alert.setId(1L);
 
         when(slaAlertRepository.getById(1L)).thenReturn(alert);
         when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
@@ -304,13 +305,13 @@ class SlaAlertServiceTest {
     void testSendAlert() {
         // Arrange
         SlaAlert alert = SlaAlert.builder()
-            .id(1L)
             .ticketNumber("TKT-20240529-0001")
             .alertLevel("RED")
             .remainingSeconds(300L)
             .remainingTimeDisplay("5m 0s")
             .alertStatus("PENDING")
             .build();
+        alert.setId(1L);
 
         when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
 
@@ -329,9 +330,11 @@ class SlaAlertServiceTest {
     void testGetActiveAlerts() {
         // Arrange
         List<SlaAlert> alerts = Arrays.asList(
-            SlaAlert.builder().id(1L).ticketNumber("TKT-001").alertLevel("RED").alertStatus("SENT").build(),
-            SlaAlert.builder().id(2L).ticketNumber("TKT-002").alertLevel("ORANGE").alertStatus("PENDING").build()
+            SlaAlert.builder().ticketNumber("TKT-001").alertLevel("RED").alertStatus("SENT").build(),
+            SlaAlert.builder().ticketNumber("TKT-002").alertLevel("ORANGE").alertStatus("PENDING").build()
         );
+        alerts.get(0).setId(1L);
+        alerts.get(1).setId(2L);
 
         when(slaAlertRepository.list(any())).thenReturn(alerts);
 
@@ -347,8 +350,9 @@ class SlaAlertServiceTest {
     void testGetActiveAlerts_FilteredByLevel() {
         // Arrange
         List<SlaAlert> alerts = List.of(
-            SlaAlert.builder().id(1L).ticketNumber("TKT-001").alertLevel("RED").alertStatus("SENT").build()
+            SlaAlert.builder().ticketNumber("TKT-001").alertLevel("RED").alertStatus("SENT").build()
         );
+        alerts.get(0).setId(1L);
 
         when(slaAlertRepository.list(any())).thenReturn(alerts);
 
@@ -359,5 +363,139 @@ class SlaAlertServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("RED", result.get(0).getAlertLevel());
+    }
+
+    // ========== NEW TESTS FOR MISSING BUSINESS FUNCTIONS ==========
+
+    @Test
+    void testGetAlertsByTicket() {
+        // Arrange
+        SlaAlert alert1 = SlaAlert.builder().ticketId(1L).ticketNumber("TKT-001").alertLevel("RED").build();
+        alert1.setId(1L);
+        SlaAlert alert2 = SlaAlert.builder().ticketId(1L).ticketNumber("TKT-001").alertLevel("ORANGE").build();
+        alert2.setId(2L);
+        List<SlaAlert> alerts = List.of(alert1, alert2);
+
+        when(slaAlertRepository.list(any())).thenReturn(alerts);
+
+        // Act
+        List<SlaAlert> result = slaAlertService.getAlertsByTicket(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void testGetBreachedAlerts() {
+        // Arrange
+        SlaAlert alert = SlaAlert.builder().ticketNumber("TKT-001").breached(true).alertLevel("BREACHED").build();
+        alert.setId(1L);
+        List<SlaAlert> breachedAlerts = List.of(alert);
+
+        when(slaAlertRepository.list(any())).thenReturn(breachedAlerts);
+
+        // Act
+        List<SlaAlert> result = slaAlertService.getBreachedAlerts();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).getBreached());
+    }
+
+    @Test
+    void testResolveAlert() {
+        // Arrange
+        SlaAlert alert = SlaAlert.builder()
+            .ticketNumber("TKT-001")
+            .alertStatus("SENT")
+            .build();
+        alert.setId(1L);
+
+        when(slaAlertRepository.getById(1L)).thenReturn(alert);
+        when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
+
+        // Act
+        SlaAlert result = slaAlertService.resolveAlert(1L);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("RESOLVED", result.getAlertStatus());
+    }
+
+    @Test
+    void testGetAlertSummary() {
+        // Arrange
+        when(slaAlertRepository.count(any())).thenReturn(5L);
+
+        // Act
+        Map<String, Long> summary = slaAlertService.getAlertSummary();
+
+        // Assert
+        assertNotNull(summary);
+        assertEquals(5L, summary.size());
+    }
+
+    @Test
+    void testBulkAcknowledgeByTier() {
+        // Arrange
+        SlaAlert alert1 = SlaAlert.builder().ticketNumber("TKT-001").slaTier("P1").alertStatus("SENT").build();
+        alert1.setId(1L);
+        SlaAlert alert2 = SlaAlert.builder().ticketNumber("TKT-002").slaTier("P1").alertStatus("PENDING").build();
+        alert2.setId(2L);
+        List<SlaAlert> p1Alerts = List.of(alert1, alert2);
+
+        when(slaAlertRepository.list(any())).thenReturn(p1Alerts);
+        when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
+
+        // Act
+        int count = slaAlertService.bulkAcknowledgeByTier("P1", "manager@company.com");
+
+        // Assert
+        assertEquals(2, count);
+    }
+
+    @Test
+    void testClearResolvedAlerts() {
+        // Arrange
+        SlaAlert oldResolved = SlaAlert.builder()
+            .ticketNumber("TKT-001")
+            .alertStatus("RESOLVED")
+            .build();
+        oldResolved.setId(1L);
+        List<SlaAlert> resolvedAlerts = List.of(oldResolved);
+
+        when(slaAlertRepository.list(any())).thenReturn(resolvedAlerts);
+        when(slaAlertRepository.removeById(any())).thenReturn(true);
+
+        // Act
+        int count = slaAlertService.clearResolvedAlerts(30);
+
+        // Assert
+        assertEquals(1, count);
+    }
+
+    @Test
+    void testEstimateResolutionTime() {
+        // Arrange
+        SlaAlert alert = SlaAlert.builder()
+            .ticketId(1L)
+            .ticketNumber("TKT-001")
+            .slaType("RESOLUTION")
+            .remainingSeconds(3600L)
+            .slaDueAt(LocalDateTime.now().plusHours(1))
+            .build();
+        alert.setId(1L);
+        alert.setCreatedAt(LocalDateTime.now().minusHours(2));
+
+        when(slaAlertRepository.getOne(any())).thenReturn(alert);
+
+        // Act
+        Double estimate = slaAlertService.estimateResolutionTime(1L, "RESOLUTION");
+
+        // Assert
+        assertNotNull(estimate);
+        assertTrue(estimate > 0);
     }
 }

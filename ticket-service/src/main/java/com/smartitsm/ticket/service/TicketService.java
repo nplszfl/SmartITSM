@@ -540,6 +540,268 @@ public class TicketService {
         return stats;
     }
 
+    /**
+     * Get ticket by ticket number (business identifier).
+     */
+    public Ticket getTicketByTicketNumber(String ticketNumber) {
+        QueryWrapper<Ticket> query = new QueryWrapper<>();
+        query.eq("ticket_number", ticketNumber);
+        Ticket ticket = ticketRepository.getOne(query);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketNumber);
+        }
+        return ticket;
+    }
+
+    /**
+     * Get all history entries for a ticket.
+     */
+    public List<TicketHistory> getTicketHistory(Long ticketId) {
+        QueryWrapper<TicketHistory> query = new QueryWrapper<>();
+        query.eq("ticket_id", ticketId).orderByDesc("created_at");
+        return ticketHistoryRepository.list(query);
+    }
+
+    /**
+     * Get history by ticket number.
+     */
+    public List<TicketHistory> getTicketHistoryByTicketNumber(String ticketNumber) {
+        QueryWrapper<TicketHistory> query = new QueryWrapper<>();
+        query.eq("ticket_number", ticketNumber).orderByDesc("created_at");
+        return ticketHistoryRepository.list(query);
+    }
+
+    /**
+     * Get a single comment by ID.
+     */
+    public TicketComment getCommentById(Long commentId) {
+        TicketComment comment = ticketCommentRepository.getById(commentId);
+        if (comment == null) {
+            throw new BusinessException("COMMENT_NOT_FOUND", "Comment not found: " + commentId);
+        }
+        return comment;
+    }
+
+    /**
+     * Update/Edit an existing comment.
+     */
+    @Transactional
+    public TicketComment updateComment(Long commentId, String content, String authorId) {
+        TicketComment comment = ticketCommentRepository.getById(commentId);
+        if (comment == null) {
+            throw new BusinessException("COMMENT_NOT_FOUND", "Comment not found: " + commentId);
+        }
+
+        String oldContent = comment.getContent();
+        comment.setContent(content);
+        ticketCommentRepository.updateById(comment);
+
+        // Record history
+        recordHistory(comment.getTicketId(), null, "COMMENT_UPDATE", "content",
+                oldContent, content, authorId, null, "Comment edited");
+
+        log.info("Comment {} updated", commentId);
+        return comment;
+    }
+
+    /**
+     * Delete a comment.
+     */
+    @Transactional
+    public void deleteComment(Long commentId, String deletedBy) {
+        TicketComment comment = ticketCommentRepository.getById(commentId);
+        if (comment == null) {
+            throw new BusinessException("COMMENT_NOT_FOUND", "Comment not found: " + commentId);
+        }
+
+        ticketCommentRepository.removeById(commentId);
+
+        // Record history
+        recordHistory(comment.getTicketId(), null, "COMMENT_DELETE", "commentId",
+                String.valueOf(commentId), null, deletedBy, null, "Comment deleted");
+
+        log.info("Comment {} deleted", commentId);
+    }
+
+    /**
+     * Escalate ticket priority with SLA recalculation.
+     */
+    @Transactional
+    public Ticket escalateTicket(Long ticketId, String newPriority, String escalationReason) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        String oldPriority = ticket.getPriority();
+        ticket.setPriority(newPriority);
+
+        // Recalculate SLA based on new priority
+        calculateSLA(ticket);
+
+        // Record escalation in history
+        recordHistory(ticketId, ticket.getTicketNumber(), "ESCALATION", "priority",
+                oldPriority, newPriority, "SYSTEM", "System", escalationReason);
+
+        ticketRepository.updateById(ticket);
+
+        log.info("Ticket {} escalated from {} to {}", ticket.getTicketNumber(), oldPriority, newPriority);
+
+        return ticket;
+    }
+
+    /**
+     * Reopen a resolved or closed ticket.
+     */
+    @Transactional
+    public Ticket reopenTicket(Long ticketId, String reason) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        if (!"RESOLVED".equals(ticket.getStatus()) && !"CLOSED".equals(ticket.getStatus())) {
+            throw new BusinessException("INVALID_STATE", "Only resolved or closed tickets can be reopened");
+        }
+
+        String oldStatus = ticket.getStatus();
+        ticket.setStatus("OPEN");
+        ticket.setResolvedAt(null);
+        ticket.setClosedAt(null);
+        ticket.setResolutionCode(null);
+        ticket.setResolutionNotes(null);
+
+        // Recalculate SLA
+        calculateSLA(ticket);
+
+        // Record in history
+        recordHistory(ticketId, ticket.getTicketNumber(), "STATUS_CHANGE", "status",
+                oldStatus, "OPEN", "SYSTEM", "System", reason != null ? reason : "Ticket reopened");
+
+        ticketRepository.updateById(ticket);
+
+        log.info("Ticket {} reopened from {}", ticket.getTicketNumber(), oldStatus);
+
+        return ticket;
+    }
+
+    /**
+     * Bulk update status for multiple tickets.
+     */
+    @Transactional
+    public int bulkUpdateStatus(List<Long> ticketIds, String newStatus, String changedBy) {
+        int count = 0;
+        for (Long ticketId : ticketIds) {
+            try {
+                Ticket ticket = ticketRepository.getById(ticketId);
+                if (ticket != null) {
+                    String oldStatus = ticket.getStatus();
+                    ticket.setStatus(newStatus);
+
+                    // Track timestamps
+                    if ("IN_PROGRESS".equals(newStatus) && ticket.getFirstResponseAt() == null) {
+                        ticket.setFirstResponseAt(LocalDateTime.now());
+                    } else if ("RESOLVED".equals(newStatus)) {
+                        ticket.setResolvedAt(LocalDateTime.now());
+                    } else if ("CLOSED".equals(newStatus)) {
+                        ticket.setClosedAt(LocalDateTime.now());
+                    }
+
+                    ticketRepository.updateById(ticket);
+
+                    recordHistory(ticketId, ticket.getTicketNumber(), "STATUS_CHANGE", "status",
+                            oldStatus, newStatus, changedBy, changedBy, "Bulk status update");
+
+                    count++;
+                }
+            } catch (Exception e) {
+                log.error("Failed to update ticket {} in bulk operation: {}", ticketId, e.getMessage());
+            }
+        }
+        log.info("Bulk status update completed: {} tickets updated to {}", count, newStatus);
+        return count;
+    }
+
+    /**
+     * Get tickets assigned to a specific user.
+     */
+    public List<Ticket> getTicketsByAssignee(String assignee) {
+        QueryWrapper<Ticket> query = new QueryWrapper<>();
+        query.eq("assigned_to", assignee).orderByDesc("created_at");
+        return ticketRepository.list(query);
+    }
+
+    /**
+     * Get tickets for a specific requester.
+     */
+    public List<Ticket> getTicketsByRequester(String requesterId) {
+        QueryWrapper<Ticket> query = new QueryWrapper<>();
+        query.eq("requester_id", requesterId).orderByDesc("created_at");
+        return ticketRepository.list(query);
+    }
+
+    /**
+     * Get SLA countdown information for a ticket.
+     */
+    public SLACountdown getSLACountdown(Long ticketId) {
+        Ticket ticket = ticketRepository.getById(ticketId);
+        if (ticket == null) {
+            throw new BusinessException("TICKET_NOT_FOUND", "Ticket not found: " + ticketId);
+        }
+
+        SLACountdown countdown = new SLACountdown();
+        countdown.setTicketNumber(ticket.getTicketNumber());
+        countdown.setSlaTier(ticket.getSlaTier());
+        countdown.setStatus(ticket.getStatus());
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // First response countdown
+        if (ticket.getFirstResponseDue() != null) {
+            countdown.setFirstResponseDue(ticket.getFirstResponseDue());
+            if (ticket.getFirstResponseAt() != null) {
+                countdown.setFirstResponseMet(true);
+                countdown.setFirstResponseRemaining(null);
+            } else {
+                countdown.setFirstResponseMet(false);
+                long minutesRemaining = java.time.Duration.between(now, ticket.getFirstResponseDue()).toMinutes();
+                countdown.setFirstResponseRemaining(minutesRemaining);
+                countdown.setFirstResponseBreached(minutesRemaining < 0);
+            }
+        }
+
+        // Resolution countdown
+        if (ticket.getResolutionDue() != null) {
+            countdown.setResolutionDue(ticket.getResolutionDue());
+            if ("RESOLVED".equals(ticket.getStatus()) || "CLOSED".equals(ticket.getStatus())) {
+                countdown.setResolutionMet(true);
+                countdown.setResolutionRemaining(null);
+            } else {
+                countdown.setResolutionMet(false);
+                long minutesRemaining = java.time.Duration.between(now, ticket.getResolutionDue()).toMinutes();
+                countdown.setResolutionRemaining(minutesRemaining);
+                countdown.setResolutionBreached(minutesRemaining < 0);
+            }
+        }
+
+        return countdown;
+    }
+
+    @Data
+    public static class SLACountdown {
+        private String ticketNumber;
+        private String slaTier;
+        private String status;
+        private LocalDateTime firstResponseDue;
+        private Long firstResponseRemaining;
+        private boolean firstResponseMet;
+        private boolean firstResponseBreached;
+        private LocalDateTime resolutionDue;
+        private Long resolutionRemaining;
+        private boolean resolutionMet;
+        private boolean resolutionBreached;
+    }
+
     @Data
     public static class TicketStats {
         private long totalOpen;

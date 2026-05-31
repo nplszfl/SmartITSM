@@ -1,0 +1,31 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacis:
+      discovery:
+        enabled: true
+    sentinel:
+      enabled: true
+    gateway:
+      routes:
+        - id: asset-service
+          uri: http://asset-service:8010
+          predicates:
+            - Path=/api/assets/**
+        - id: ticket-service
+          uri: http://ticket-service:8011
+          predicates:
+            - Path=/api/v1/tickets/**
+        - id: knowledge-service
+          uri: http://knowledge-service:8015
+          predicates:
+            - Path=/api/articles/**,/api/categories/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

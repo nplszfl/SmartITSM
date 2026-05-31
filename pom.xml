@@ -29,6 +29,7 @@
         <module>smart-ticket-classification-service</module>
         <module>sla-alert-service</module>
         <module>asset-inventory-service</module>
+        <module>knowledge-service</module>
     </modules>
 
     <properties>

@@ -1,0 +1,12 @@
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/controller/KnowledgeCategoryController.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/service/KnowledgeArticleService.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/dto/KnowledgeArticleResponse.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/controller/KnowledgeArticleController.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/entity/KnowledgeArticle.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/service/KnowledgeCategoryService.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/repository/KnowledgeArticleRepository.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/dto/KnowledgeSearchResult.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/KnowledgeApplication.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/dto/KnowledgeArticleRequest.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/entity/KnowledgeCategory.java
+/Users/huanghuixiang/smartitsm/knowledge-service/src/main/java/com/smartitsm/knowledge/repository/KnowledgeCategoryRepository.java

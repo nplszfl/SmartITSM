@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Knowledge Article REST API Controller.
@@ -176,5 +177,77 @@ public class KnowledgeArticleController {
             @RequestParam(defaultValue = "5") int limit) {
         List<KnowledgeArticle> articles = articleService.getRelatedArticles(ticketId, limit);
         return ApiResponse.ok(articles);
+    }
+
+    // ==================== Statistics & Analytics ====================
+
+    /**
+     * Get aggregated knowledge base statistics.
+     */
+    @GetMapping("/stats")
+    public ApiResponse<Map<String, Object>> getStatistics() {
+        return ApiResponse.ok(articleService.getStatistics());
+    }
+
+    /**
+     * Get top contributing authors.
+     */
+    @GetMapping("/contributors")
+    public ApiResponse<List<Map<String, Object>>> getTopContributors(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok(articleService.getTopContributors(limit));
+    }
+
+    /**
+     * Count published articles in a category.
+     */
+    @GetMapping("/category/{categoryId}/count")
+    public ApiResponse<Long> countByCategory(@PathVariable String categoryId) {
+        return ApiResponse.ok(articleService.countByCategory(categoryId));
+    }
+
+    /**
+     * Get all articles by a specific author.
+     */
+    @GetMapping("/author/{authorId}")
+    public ApiResponse<List<KnowledgeArticle>> getArticlesByAuthor(@PathVariable String authorId) {
+        return ApiResponse.ok(articleService.getArticlesByAuthor(authorId));
+    }
+
+    // ==================== Duplicate Detection & Maintenance ====================
+
+    /**
+     * Find articles whose titles contain a keyword - used for duplicate detection
+     * before creating a new article.
+     */
+    @GetMapping("/similar")
+    public ApiResponse<List<KnowledgeArticle>> findSimilarArticles(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "5") int limit) {
+        return ApiResponse.ok(articleService.findSimilarArticles(keyword, limit));
+    }
+
+    /**
+     * Auto-archive articles that are past their expiration date.
+     * Designed to be called from a scheduled task.
+     */
+    @PostMapping("/auto-expire")
+    public ApiResponse<Integer> autoExpireArticles() {
+        int count = articleService.autoExpireArticles();
+        return ApiResponse.ok(count);
+    }
+
+    /**
+     * Bulk update status for a list of article IDs.
+     */
+    @PostMapping("/bulk/status")
+    public ApiResponse<Integer> bulkUpdateStatus(@RequestBody Map<String, Object> payload) {
+        @SuppressWarnings("unchecked")
+        List<Object> rawIds = (List<Object>) payload.get("ids");
+        String newStatus = (String) payload.get("status");
+        List<Long> ids = rawIds == null ? java.util.Collections.emptyList()
+            : rawIds.stream().map(o -> ((Number) o).longValue()).collect(java.util.stream.Collectors.toList());
+        int updated = articleService.bulkUpdateStatus(ids, newStatus);
+        return ApiResponse.ok(updated);
     }
 }

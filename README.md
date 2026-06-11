@@ -72,6 +72,7 @@ SmartITSM/
 ├── smart-ticket-classification-service/  # 智能工单分类服务 ⭐
 ├── sla-alert-service/              # SLA预警服务 ⭐
 ├── asset-inventory-service/       # 资产自动盘点服务 ⭐
+├── knowledge-service/             # 知识库服务 ⭐
 ├── workflow-service/               # 工作流服务
 ├── analytics-service/              # 分析服务
 ├── gateway/                        # API 网关

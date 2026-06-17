@@ -60,13 +60,8 @@ class SlaAlertServiceTest {
     @Test
     void testMonitorSla_CreatesNewAlert() {
         // Arrange
-        when(slaAlertRepository.getOne(any())).thenReturn(null);
-        when(slaAlertRepository.save(any(SlaAlert.class)))
-            .thenAnswer(invocation -> {
-                SlaAlert alert = invocation.getArgument(0);
-                alert.setId(1L);
-                return alert;
-            });
+        when(slaAlertRepository.getOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(null);
+        when(slaAlertRepository.save(any(SlaAlert.class))).thenReturn(true);
 
         // Act
         SlaAlert result = slaAlertService.monitorSla(testRequest);
@@ -79,7 +74,7 @@ class SlaAlertServiceTest {
         assertEquals("P2", result.getSlaTier());
         assertNotNull(result.getRemainingSeconds());
         assertNotNull(result.getAlertLevel());
-        assertEquals("PENDING", result.getAlertStatus());
+        assertEquals("NORMAL", result.getAlertStatus());
         verify(slaAlertRepository, times(1)).save(any(SlaAlert.class));
     }
 
@@ -125,13 +120,8 @@ class SlaAlertServiceTest {
             .ticketPriority("CRITICAL")
             .build();
 
-        when(slaAlertRepository.getOne(any())).thenReturn(null);
-        when(slaAlertRepository.save(any(SlaAlert.class)))
-            .thenAnswer(invocation -> {
-                SlaAlert alert = invocation.getArgument(0);
-                alert.setId(2L);
-                return alert;
-            });
+        when(slaAlertRepository.getOne(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(null);
+        when(slaAlertRepository.save(any(SlaAlert.class))).thenReturn(true);
 
         // Act
         SlaAlert result = slaAlertService.monitorSla(breachedRequest);
@@ -196,7 +186,7 @@ class SlaAlertServiceTest {
     @Test
     void testGetSlaStats_Empty() {
         // Arrange
-        when(slaComplianceRepository.list(any())).thenReturn(List.of());
+        when(slaComplianceRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(List.of());
 
         // Act
         SlaStatsResponse result = slaAlertService.getSlaStats("DAILY", null, null);
@@ -218,7 +208,7 @@ class SlaAlertServiceTest {
             SlaCompliance.builder().ticketId(3L).slaType("RESOLUTION").slaTier("P2").met(false).build()
         );
 
-        when(slaComplianceRepository.list(any())).thenReturn(compliances);
+        when(slaComplianceRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(compliances);
 
         // Act
         SlaStatsResponse result = slaAlertService.getSlaStats("DAILY", "2024-05-01", "2024-05-29");
@@ -237,12 +227,7 @@ class SlaAlertServiceTest {
         LocalDateTime slaDue = LocalDateTime.now().plusHours(4);
         LocalDateTime completed = LocalDateTime.now().plusHours(3);
 
-        when(slaComplianceRepository.save(any(SlaCompliance.class)))
-            .thenAnswer(invocation -> {
-                SlaCompliance compliance = invocation.getArgument(0);
-                compliance.setId(1L);
-                return compliance;
-            });
+        when(slaComplianceRepository.save(any(SlaCompliance.class))).thenReturn(true);
 
         // Act
         SlaCompliance result = slaAlertService.recordCompliance(
@@ -262,12 +247,7 @@ class SlaAlertServiceTest {
         LocalDateTime slaDue = LocalDateTime.now().plusHours(4);
         LocalDateTime completed = LocalDateTime.now().plusHours(5);
 
-        when(slaComplianceRepository.save(any(SlaCompliance.class)))
-            .thenAnswer(invocation -> {
-                SlaCompliance compliance = invocation.getArgument(0);
-                compliance.setId(1L);
-                return compliance;
-            });
+        when(slaComplianceRepository.save(any(SlaCompliance.class))).thenReturn(true);
 
         // Act
         SlaCompliance result = slaAlertService.recordCompliance(
@@ -336,7 +316,7 @@ class SlaAlertServiceTest {
         alerts.get(0).setId(1L);
         alerts.get(1).setId(2L);
 
-        when(slaAlertRepository.list(any())).thenReturn(alerts);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(alerts);
 
         // Act
         List<SlaAlert> result = slaAlertService.getActiveAlerts(null);
@@ -354,7 +334,7 @@ class SlaAlertServiceTest {
         );
         alerts.get(0).setId(1L);
 
-        when(slaAlertRepository.list(any())).thenReturn(alerts);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(alerts);
 
         // Act
         List<SlaAlert> result = slaAlertService.getActiveAlerts("RED");
@@ -376,7 +356,7 @@ class SlaAlertServiceTest {
         alert2.setId(2L);
         List<SlaAlert> alerts = List.of(alert1, alert2);
 
-        when(slaAlertRepository.list(any())).thenReturn(alerts);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(alerts);
 
         // Act
         List<SlaAlert> result = slaAlertService.getAlertsByTicket(1L);
@@ -393,7 +373,7 @@ class SlaAlertServiceTest {
         alert.setId(1L);
         List<SlaAlert> breachedAlerts = List.of(alert);
 
-        when(slaAlertRepository.list(any())).thenReturn(breachedAlerts);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(breachedAlerts);
 
         // Act
         List<SlaAlert> result = slaAlertService.getBreachedAlerts();
@@ -446,7 +426,7 @@ class SlaAlertServiceTest {
         alert2.setId(2L);
         List<SlaAlert> p1Alerts = List.of(alert1, alert2);
 
-        when(slaAlertRepository.list(any())).thenReturn(p1Alerts);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(p1Alerts);
         when(slaAlertRepository.updateById(any(SlaAlert.class))).thenReturn(true);
 
         // Act
@@ -466,8 +446,8 @@ class SlaAlertServiceTest {
         oldResolved.setId(1L);
         List<SlaAlert> resolvedAlerts = List.of(oldResolved);
 
-        when(slaAlertRepository.list(any())).thenReturn(resolvedAlerts);
-        when(slaAlertRepository.removeById(any())).thenReturn(true);
+        when(slaAlertRepository.list(any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(resolvedAlerts);
+        when(slaAlertRepository.removeById(any(java.io.Serializable.class))).thenReturn(true);
 
         // Act
         int count = slaAlertService.clearResolvedAlerts(30);

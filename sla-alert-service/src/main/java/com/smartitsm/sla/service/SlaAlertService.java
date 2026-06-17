@@ -230,17 +230,17 @@ public class SlaAlertService {
     public SlaCompliance recordCompliance(Long ticketId, String ticketNumber, String slaType,
                                           LocalDateTime slaDueAt, LocalDateTime completedAt,
                                           String slaTier, String ticketPriority) {
+        // Target = total SLA window from completedAt reference; but more clearly,
+        // target = remaining time at the start (we approximate via Duration between now and slaDueAt as "remaining budget")
+        // Actual = remaining time when completed (Duration between completedAt and slaDueAt)
         long targetSeconds = Duration.between(LocalDateTime.now(), slaDueAt).getSeconds();
-        long actualSeconds = Duration.between(LocalDateTime.now(), completedAt).getSeconds();
-        
-        // Actually calculate properly
-        targetSeconds = Duration.between(completedAt, slaDueAt).getSeconds();
-        actualSeconds = Duration.between(LocalDateTime.now(), completedAt).getSeconds();
-        
-        boolean met = actualSeconds <= targetSeconds;
-        long overageSeconds = met ? 0 : (actualSeconds - targetSeconds);
-        double compliancePercentage = targetSeconds > 0 ? 
-            Math.max(0, Math.min(100, (targetSeconds - overageSeconds) * 100.0 / targetSeconds)) : 0;
+        long actualSeconds = Duration.between(completedAt, slaDueAt).getSeconds();
+
+        // Met if completedAt is on or before slaDueAt (i.e. actualSeconds >= 0)
+        boolean met = actualSeconds >= 0;
+        long overageSeconds = met ? 0 : (-actualSeconds);
+        double compliancePercentage = targetSeconds > 0 ?
+            Math.max(0, Math.min(100, (actualSeconds * 100.0 / targetSeconds))) : 0;
 
         SlaCompliance compliance = SlaCompliance.builder()
             .ticketId(ticketId)
